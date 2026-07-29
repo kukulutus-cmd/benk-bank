@@ -1,17 +1,30 @@
 /**
  * ==========================================================
- * APISERVICE.JS - HTTP Client (Support User Unit CRUD)
+ * APISERVICE.JS - HTTP Client (Passing User Context for Data Isolation)
  * ==========================================================
  */
 
 import { APP_CONFIG } from './config.js';
+import { AuthService } from './auth.js';
 
 export const ApiService = {
   fetchData: async function() {
     try {
+      const currentUser = AuthService.getCurrentUser();
+      
+      // Mengirimkan context user ke backend via POST
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
-        method: "GET",
-        redirect: "follow"
+        method: "POST",
+        redirect: "follow",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ 
+          action: "getData", 
+          userContext: currentUser ? {
+            role: currentUser.role,
+            username: currentUser.username,
+            email: currentUser.email
+          } : null 
+        })
       });
       
       if (!response.ok) {
