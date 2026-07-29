@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APP.JS - Main Orchestrator, Live Signal, Active Units & Realtime Polling
+ * APP.JS - Non-Blocking Orchestrator & Head-Only Toast Notification
  * ==========================================================
  */
 
@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Load awal data
   await loadInitialAppData();
 
-  // Jalankan Loops: Signal Heartbeat (Setiap 12s) & Live Data Polling (Setiap 8s)
+  // Jalankan Loops Background
   startHeartbeatLoop(currentUser);
   startRealtimeDataPolling(currentUser);
 
@@ -68,17 +68,15 @@ async function loadInitialAppData() {
     GridEngine.initGrid("myGrid", result.data);
     
     isFirstLoad = false;
-    showLoading(false);
   } catch (error) {
-    showLoading(false);
     updateSignalStatus(false, 0);
     console.error("Gagal memuat data aplikasi:", error);
+  } finally {
+    // FIX PENTING: Spinner Modal WAJIB Hilang dalam keadaan apa pun!
+    showLoading(false);
   }
 }
 
-/**
- * HEARTBEAT PING: Memperbarui timestamp online & status unit lain
- */
 function startHeartbeatLoop(currentUser) {
   setInterval(async () => {
     if (!currentUser || !currentUser.email) return;
@@ -89,13 +87,13 @@ function startHeartbeatLoop(currentUser) {
         renderOnlineUnitsWidget(cachedUsersList);
       }
     } catch (e) {
-      // Quiet fail for background heartbeat
+      // Background Heartbeat Failure - Non Blocking
     }
   }, 12000);
 }
 
 /**
- * LIVE REALTIME DATA POLLING: Mengecek entri debitur baru dari unit lain
+ * POLLING POPS-UP HANYA UNTUK HEAD AREA
  */
 function startRealtimeDataPolling(currentUser) {
   setInterval(async () => {
@@ -111,14 +109,13 @@ function startRealtimeDataPolling(currentUser) {
       if (Array.isArray(result.data)) {
         const currentCount = result.data.length;
 
-        // Jika ada penambahan data baru di luar aksi user ini (Terutama di Head Area)
-        if (!isFirstLoad && currentCount > lastDataRowCount) {
+        // PERBAIKAN: NOTIFIKASI TOAST HANYA UNTUK HEAD AREA!
+        if (!isFirstLoad && currentCount > lastDataRowCount && AuthService.isHeadArea()) {
           const newItemsCount = currentCount - lastDataRowCount;
           const newestItem = result.data[result.data.length - 1];
           
           showToastNotification(`🔔 Data Baru Masuk! (${newItemsCount} Debitur baru oleh ${newestItem.nama_muh || 'Unit'})`);
           
-          // Update Grid & Stat Cards secara smooth
           if (GridEngine.gridApi) {
             GridEngine.gridApi.setGridOption('rowData', result.data);
           }
@@ -133,9 +130,6 @@ function startRealtimeDataPolling(currentUser) {
   }, 8000);
 }
 
-/**
- * UPDATE BADGE SINYAL ONLINE & LATENCY PING
- */
 function updateSignalStatus(isOnline, pingMs) {
   const dot = document.getElementById("signal-dot");
   const text = document.getElementById("signal-text");
@@ -151,15 +145,11 @@ function updateSignalStatus(isOnline, pingMs) {
   }
 }
 
-/**
- * RENDER WIDGET KEPALA UNIT YANG SEDANG ONLINE/LOGIN
- */
 function renderOnlineUnitsWidget(users) {
   const container = document.getElementById("online-units-badges");
   if (!container || !Array.isArray(users)) return;
 
   const now = new Date().getTime();
-  // Filter user yang melakukan aktivitas/ping dalam 45 detik terakhir
   const onlineUsers = users.filter(u => {
     if (!u.last_active) return false;
     const lastActiveTime = new Date(u.last_active).getTime();
@@ -179,10 +169,10 @@ function renderOnlineUnitsWidget(users) {
   `).join("");
 }
 
-/**
- * NOTIFIKASI TOAST MELAYANG
- */
 function showToastNotification(message) {
+  // Hanya eksekusi jika role adalah Head Area
+  if (!AuthService.isHeadArea()) return;
+
   const container = document.getElementById("toast-container");
   if (!container) return;
 
@@ -195,12 +185,10 @@ function showToastNotification(message) {
 
   container.appendChild(toast);
 
-  // Trigger Animation
   setTimeout(() => {
     toast.classList.remove("translate-y-2", "opacity-0");
   }, 50);
 
-  // Auto Dismiss after 6 seconds
   setTimeout(() => {
     toast.classList.add("opacity-0", "translate-y-2");
     setTimeout(() => toast.remove(), 300);
