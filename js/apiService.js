@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APISERVICE.JS - HTTP Client (Passing User Context for Data Isolation)
+ * APISERVICE.JS - Fast HTTP Client & Heartbeat Ping Engine
  * ==========================================================
  */
 
@@ -11,8 +11,8 @@ export const ApiService = {
   fetchData: async function() {
     try {
       const currentUser = AuthService.getCurrentUser();
-      
-      // Mengirimkan context user ke backend via POST
+      const startTime = Date.now();
+
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
         method: "POST",
         redirect: "follow",
@@ -27,19 +27,39 @@ export const ApiService = {
         })
       });
       
+      const pingMs = Date.now() - startTime;
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const result = await response.json();
       if (result.status === "success") {
-        return result;
+        const payloadData = result.data.data ? result.data : result;
+        payloadData.pingMs = pingMs;
+        return payloadData;
       } else {
         throw new Error(result.message || "Gagal mengambil data dari server.");
       }
     } catch (error) {
       console.error("ApiService.fetchData Error:", error);
       throw error;
+    }
+  },
+
+  sendHeartbeat: async function(email) {
+    try {
+      const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
+        method: "POST",
+        redirect: "follow",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "heartbeat", email: email })
+      });
+      
+      const result = await response.json();
+      return result.status === "success" ? result.data : null;
+    } catch (e) {
+      return null;
     }
   },
 
