@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * GRIDENGINE.JS - Grid Lines & Action Delete Column Engine
+ * GRIDENGINE.JS - AG-Grid Engine & Checkbox Event Capture
  * ==========================================================
  */
 
@@ -17,7 +17,6 @@ export const GridEngine = {
 
     const isHeadArea = AuthService.isHeadArea();
 
-    // Definisi 18 Kolom + 1 Kolom Aksi Hapus Baris
     const columnDefs = [
       { 
         headerName: "NO", 
@@ -65,6 +64,8 @@ export const GridEngine = {
       },
       { headerName: "TGL CAIR", field: "tgl_cair", minWidth: 75, editable: !isHeadArea },
       { headerName: "Periode Bulan", field: "periode_bulan", minWidth: 65, editable: !isHeadArea },
+      
+      // CHECKBOX COLUMNS DENGAN PARSER BOOLEAN PRESISI
       { headerName: "QRIS", field: "qris", minWidth: 45, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
       { headerName: "JAKONE ABANK", field: "jakone_abank", minWidth: 65, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
       { headerName: "JAKONE MOBILE", field: "jakone_mobile", minWidth: 65, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
@@ -72,7 +73,6 @@ export const GridEngine = {
       { headerName: "KETERANGAN", field: "keterangan", minWidth: 90, editable: !isHeadArea }
     ];
 
-    // Jika Role adalah MUH, tambahkan Kolom AKSI (Tombol Hapus)
     if (!isHeadArea) {
       columnDefs.push({
         headerName: "AKSI",
@@ -178,10 +178,10 @@ export const GridEngine = {
       nett_booking: 0,
       tgl_cair: new Date().toISOString().split('T')[0],
       periode_bulan: `${new Date().getMonth() + 1}/${new Date().getFullYear()}`,
-      qris: "",
-      jakone_abank: "",
-      jakone_mobile: "",
-      edc: "",
+      qris: false,
+      jakone_abank: false,
+      jakone_mobile: false,
+      edc: false,
       keterangan: "Baru"
     };
 
@@ -198,7 +198,10 @@ export const GridEngine = {
     StatCardsModule.updateMetrics(allRows);
 
     try {
-      await ApiService.saveRow(newRow);
+      const res = await ApiService.saveRow(newRow);
+      if (res && res.row_index) {
+        newRow.row_index = res.row_index;
+      }
       if (statusEl) {
         statusEl.innerText = "✓ Baris Baru Tersimpan!";
         statusEl.className = "text-green-600 font-semibold text-xs";
@@ -215,7 +218,6 @@ export const GridEngine = {
   deleteRow: async function(rowData, node) {
     if (!confirm("Apakah Anda yakin ingin menghapus baris debitur ini?")) return;
 
-    // 1. Hapus dari UI AG-Grid secara instan
     this.gridApi.applyTransaction({ remove: [rowData] });
 
     const statusEl = document.getElementById("sync-status");
@@ -224,12 +226,10 @@ export const GridEngine = {
       statusEl.className = "text-amber-600 font-semibold text-xs";
     }
 
-    // 2. Update Stat Cards
     const allRows = [];
     this.gridApi.forEachNode(n => allRows.push(n.data));
     StatCardsModule.updateMetrics(allRows);
 
-    // 3. Kirim komando hapus ke Google Sheets Backend
     try {
       if (rowData.row_index) {
         await ApiService.deleteRow(rowData.row_index);
