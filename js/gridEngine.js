@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * GRIDENGINE.JS - Ultra Compact 18 Column Auto-Wrap Engine
+ * GRIDENGINE.JS - Grid Lines & Action Delete Column Engine
  * ==========================================================
  */
 
@@ -17,7 +17,7 @@ export const GridEngine = {
 
     const isHeadArea = AuthService.isHeadArea();
 
-    // Definisi 18 Kolom Presisi dengan Ukuran Kompak setara Google Sheets
+    // Definisi 18 Kolom + 1 Kolom Aksi Hapus Baris
     const columnDefs = [
       { 
         headerName: "NO", 
@@ -60,7 +60,7 @@ export const GridEngine = {
         editable: !isHeadArea,
         valueFormatter: params => {
           if (!params.value) return "0";
-          return new Intl.NumberFormat("id-ID").format(params.value);
+          return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(params.value);
         }
       },
       { headerName: "TGL CAIR", field: "tgl_cair", minWidth: 75, editable: !isHeadArea },
@@ -72,6 +72,29 @@ export const GridEngine = {
       { headerName: "KETERANGAN", field: "keterangan", minWidth: 90, editable: !isHeadArea }
     ];
 
+    // Jika Role adalah MUH, tambahkan Kolom AKSI (Tombol Hapus)
+    if (!isHeadArea) {
+      columnDefs.push({
+        headerName: "AKSI",
+        minWidth: 50,
+        maxWidth: 60,
+        pinned: 'right',
+        editable: false,
+        cellRenderer: (params) => {
+          const btn = document.createElement("button");
+          btn.innerHTML = "✕";
+          btn.title = "Hapus Baris Ini";
+          btn.className = "bg-red-100 hover:bg-red-700 text-red-700 hover:text-white font-bold px-2 py-0.5 rounded transition-colors text-xs cursor-pointer mx-auto block";
+          
+          btn.addEventListener("click", () => {
+            this.deleteRow(params.data, params.node);
+          });
+          
+          return btn;
+        }
+      });
+    }
+
     const gridOptions = {
       columnDefs: columnDefs,
       rowData: initialData || [],
@@ -80,9 +103,9 @@ export const GridEngine = {
         filter: true,
         resizable: true,
         editable: !isHeadArea,
-        flex: 1,                 // Membagi lebar layar secara proporsional
-        wrapHeaderText: true,   // FITUR KUNCI: Header Otomatis Turun Baris (Wrapped Text)
-        autoHeaderHeight: true  // FITUR KUNCI: Tinggi Header Otomatis Menyesuaikan Teks
+        flex: 1,
+        wrapHeaderText: true,
+        autoHeaderHeight: true
       },
       rowSelection: 'single',
       animateRows: true,
@@ -184,6 +207,41 @@ export const GridEngine = {
       console.error("Gagal menyimpan baris baru:", error);
       if (statusEl) {
         statusEl.innerText = "⚠️ Gagal Simpan ke Server";
+        statusEl.className = "text-red-600 font-semibold text-xs";
+      }
+    }
+  },
+
+  deleteRow: async function(rowData, node) {
+    if (!confirm("Apakah Anda yakin ingin menghapus baris debitur ini?")) return;
+
+    // 1. Hapus dari UI AG-Grid secara instan
+    this.gridApi.applyTransaction({ remove: [rowData] });
+
+    const statusEl = document.getElementById("sync-status");
+    if (statusEl) {
+      statusEl.innerText = "🗑️ Menghapus baris...";
+      statusEl.className = "text-amber-600 font-semibold text-xs";
+    }
+
+    // 2. Update Stat Cards
+    const allRows = [];
+    this.gridApi.forEachNode(n => allRows.push(n.data));
+    StatCardsModule.updateMetrics(allRows);
+
+    // 3. Kirim komando hapus ke Google Sheets Backend
+    try {
+      if (rowData.row_index) {
+        await ApiService.deleteRow(rowData.row_index);
+      }
+      if (statusEl) {
+        statusEl.innerText = "✓ Baris Berhasil Dihapus!";
+        statusEl.className = "text-green-600 font-semibold text-xs";
+      }
+    } catch (error) {
+      console.error("Gagal menghapus baris di server:", error);
+      if (statusEl) {
+        statusEl.innerText = "⚠️ Gagal Hapus di Server";
         statusEl.className = "text-red-600 font-semibold text-xs";
       }
     }
