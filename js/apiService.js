@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APISERVICE.JS - Fast HTTP Client & Heartbeat Ping Engine
+ * APISERVICE.JS - Optimized Ping & Fast Fetch Engine
  * ==========================================================
  */
 
@@ -11,7 +11,7 @@ export const ApiService = {
   fetchData: async function() {
     try {
       const currentUser = AuthService.getCurrentUser();
-      const startTime = Date.now();
+      const startTime = performance.now();
 
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
         method: "POST",
@@ -27,7 +27,7 @@ export const ApiService = {
         })
       });
       
-      const pingMs = Date.now() - startTime;
+      const pingMs = Math.round(performance.now() - startTime);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
