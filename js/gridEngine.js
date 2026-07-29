@@ -124,7 +124,7 @@ export const GridEngine = {
   },
 
   /**
-   * Menambahkan baris baru secara instan ke tabel tanpa refresh halaman
+   * Menambahkan baris baru secara instan ke tabel
    */
   addNewRow: async function() {
     if (AuthService.isHeadArea()) {
@@ -139,7 +139,7 @@ export const GridEngine = {
 
     const user = AuthService.getCurrentUser();
     const newRow = {
-      row_index: null, // Baris baru
+      row_index: null,
       nama_sentra: "cikarang",
       nama_muh: user ? user.username : "AKBAR",
       nama_sm: "",
@@ -173,7 +173,7 @@ export const GridEngine = {
     this.gridApi.forEachNode(node => allRows.push(node.data));
     StatCardsModule.updateMetrics(allRows);
 
-    // 3. Kirim data ke Google Sheets di background tanpa merefresh halaman
+    // 3. Kirim data ke Google Sheets di background
     try {
       await ApiService.saveRow(newRow);
       if (statusEl) {
