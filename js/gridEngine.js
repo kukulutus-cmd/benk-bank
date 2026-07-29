@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * GRIDENGINE.JS - Konfigurasi AG-Grid 18 Kolom Presisi & Event Handler
+ * GRIDENGINE.JS - AG-Grid v31 Modern Engine & Instant Row Add
  * ==========================================================
  */
 
@@ -10,12 +10,9 @@ import { StatCardsModule } from './statCards.js';
 
 export const GridEngine = {
   gridApi: null,
-  gridColumnApi: null,
 
   /**
-   * Menginisialisasi AG-Grid di dalam elemen kontainer HTML
-   * @param {string} containerId - ID dari elemen div kontainer grid
-   * @param {Array} initialData - Data awal baris
+   * Menginisialisasi AG-Grid v31 menggunakan createGrid
    */
   initGrid: function(containerId, initialData) {
     const container = document.getElementById(containerId);
@@ -25,7 +22,14 @@ export const GridEngine = {
 
     // Definisi 18 Kolom Presisi Sesuai Blueprint
     const columnDefs = [
-      { headerName: "NO", field: "no", width: 70, pinned: 'left', editable: false },
+      { 
+        headerName: "NO", 
+        valueGetter: "node.rowIndex + 1", 
+        width: 70, 
+        pinned: 'left', 
+        editable: false,
+        cellClass: 'bg-slate-100 font-bold text-slate-600 text-center'
+      },
       { headerName: "NAMA SENTRA", field: "nama_sentra", width: 140, editable: !isHeadArea },
       { headerName: "NAMA MUH", field: "nama_muh", width: 130, editable: !isHeadArea },
       { headerName: "NAMA SM", field: "nama_sm", width: 140, editable: !isHeadArea },
@@ -84,7 +88,6 @@ export const GridEngine = {
       onCellValueChanged: async (event) => {
         const updatedRow = event.data;
         
-        // Tampilkan indikator status saving
         const statusEl = document.getElementById("sync-status");
         if (statusEl) {
           statusEl.innerText = "💾 Menyimpan perubahan...";
@@ -99,10 +102,11 @@ export const GridEngine = {
             statusEl.className = "text-green-600 font-semibold text-xs";
           }
 
-          // Ambil seluruh data terbaru untuk memperbarui kalkulasi stat cards
           const allRows = [];
-          event.api.forEachNode(node => allRows.push(node.data));
-          StatCardsModule.updateMetrics(allRows);
+          if (this.gridApi) {
+            this.gridApi.forEachNode(node => allRows.push(node.data));
+            StatCardsModule.updateMetrics(allRows);
+          }
 
         } catch (error) {
           console.error("Gagal menyimpan perubahan sel:", error);
@@ -110,18 +114,17 @@ export const GridEngine = {
             statusEl.innerText = "❌ Gagal Sinkronisasi";
             statusEl.className = "text-red-600 font-semibold text-xs";
           }
-          alert("Gagal menyimpan perubahan ke server: " + error.message);
         }
       }
     };
 
-    // Bersihkan kontainer lama jika ada, lalu inisialisasi AG-Grid baru
     container.innerHTML = "";
-    new agGrid.Grid(container, gridOptions);
+    // Menggunakan API AG-Grid v31 Terbaru (createGrid)
+    this.gridApi = agGrid.createGrid(container, gridOptions);
   },
 
   /**
-   * Menambahkan baris kosong baru ke dalam grid untuk diisi oleh MUH
+   * Menambahkan baris baru secara instan ke tabel tanpa refresh halaman
    */
   addNewRow: async function() {
     if (AuthService.isHeadArea()) {
@@ -129,17 +132,21 @@ export const GridEngine = {
       return;
     }
 
+    if (!this.gridApi) {
+      alert("Tabel belum siap, silakan coba beberapa saat lagi.");
+      return;
+    }
+
     const user = AuthService.getCurrentUser();
     const newRow = {
-      row_index: null, // Berarti baris baru (append)
-      no: "",
-      nama_sentra: "Sentra Baru",
-      nama_muh: user ? user.username : "MUH",
+      row_index: null, // Baris baru
+      nama_sentra: "cikarang",
+      nama_muh: user ? user.username : "AKBAR",
       nama_sm: "",
       nama_debitur: "",
-      bidang_usaha: "",
-      no_tabungan: "",
-      no_pinjaman: "",
+      bidang_usaha: "-",
+      no_tabungan: "-",
+      no_pinjaman: "-",
       line_proses: "SM",
       plafon: 0,
       nett_booking: 0,
@@ -152,14 +159,33 @@ export const GridEngine = {
       keterangan: "Baru"
     };
 
-    try {
-      const statusEl = document.getElementById("sync-status");
-      if (statusEl) statusEl.innerText = "Menambahkan baris baru...";
+    // 1. Tampilkan baris baru secara instan di tabel AG-Grid
+    this.gridApi.applyTransaction({ add: [newRow] });
 
-      const res = await ApiService.saveRow(newRow);
-      window.location.reload(); // Refresh untuk mengambil row_index asli dari database
+    // 2. Update status & kalkulasi Stat Cards
+    const statusEl = document.getElementById("sync-status");
+    if (statusEl) {
+      statusEl.innerText = "💾 Menyimpan baris baru...";
+      statusEl.className = "text-amber-600 font-semibold text-xs";
+    }
+
+    const allRows = [];
+    this.gridApi.forEachNode(node => allRows.push(node.data));
+    StatCardsModule.updateMetrics(allRows);
+
+    // 3. Kirim data ke Google Sheets di background tanpa merefresh halaman
+    try {
+      await ApiService.saveRow(newRow);
+      if (statusEl) {
+        statusEl.innerText = "✓ Baris Baru Tersimpan!";
+        statusEl.className = "text-green-600 font-semibold text-xs";
+      }
     } catch (error) {
-      alert("Gagal menambah baris: " + error.message);
+      console.error("Gagal menyimpan baris baru:", error);
+      if (statusEl) {
+        statusEl.innerText = "⚠️ Gagal Simpan ke Server";
+        statusEl.className = "text-red-600 font-semibold text-xs";
+      }
     }
   }
 };
