@@ -7,13 +7,13 @@
 export const StatCardsModule = {
   /**
    * Melakukan kalkulasi ulang dan memperbarui tampilan Stat Cards di UI
-   * @param {Array} rowData - Seluruh data baris dari grid / Google Sheets
+   * @param {Array} rowData - Seluruh data baris dari grid
    */
   updateMetrics: function(rowData) {
     if (!Array.isArray(rowData)) return;
 
-    // 1. Total Berkas Debitur (Baris yang memiliki nama debitur valid)
-    const totalBerkas = rowData.filter(r => r.nama_debitur && r.nama_debitur.trim() !== "").length;
+    // 1. Total Berkas Debitur (Jumlah baris yang ada di grid)
+    const totalBerkas = rowData.length;
 
     // 2. Total Nominal Plafon (Sum dari kolom plafon)
     const totalPlafon = rowData.reduce((acc, curr) => {
