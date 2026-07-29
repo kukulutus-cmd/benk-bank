@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APP.JS - Main Application Orchestrator & User CRUD Manager
+ * APP.JS - Main Orchestrator, Live Signal, Active Units & Realtime Polling
  * ==========================================================
  */
 
@@ -10,6 +10,8 @@ import { StatCardsModule } from './statCards.js';
 import { GridEngine } from './gridEngine.js';
 
 let cachedUsersList = [];
+let lastDataRowCount = 0;
+let isFirstLoad = true;
 
 document.addEventListener("DOMContentLoaded", async () => {
   const currentUser = AuthService.getCurrentUser();
@@ -28,14 +30,29 @@ document.addEventListener("DOMContentLoaded", async () => {
       btnSet.classList.remove("hidden");
       btnSet.addEventListener("click", () => openSettingsModal());
     }
+    const onlineWidget = document.getElementById("online-units-container");
+    if (onlineWidget) onlineWidget.classList.remove("hidden");
   }
 
   renderAppShell(currentUser);
 
+  // Load awal data
+  await loadInitialAppData();
+
+  // Jalankan Loops: Signal Heartbeat (Setiap 12s) & Live Data Polling (Setiap 8s)
+  startHeartbeatLoop(currentUser);
+  startRealtimeDataPolling(currentUser);
+
+  bindButtons();
+});
+
+async function loadInitialAppData() {
   try {
     showLoading(true);
     const result = await ApiService.fetchData();
     
+    updateSignalStatus(true, result.pingMs || 100);
+
     if (result.settings) {
       AuthService.saveBankSettingsLocal(result.settings);
       updateBankHeader(result.settings);
@@ -43,18 +60,152 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (result.users) {
       cachedUsersList = result.users;
+      renderOnlineUnitsWidget(cachedUsersList);
     }
 
+    lastDataRowCount = Array.isArray(result.data) ? result.data.length : 0;
     StatCardsModule.updateMetrics(result.data);
     GridEngine.initGrid("myGrid", result.data);
+    
+    isFirstLoad = false;
     showLoading(false);
   } catch (error) {
     showLoading(false);
+    updateSignalStatus(false, 0);
     console.error("Gagal memuat data aplikasi:", error);
   }
+}
 
-  bindButtons();
-});
+/**
+ * HEARTBEAT PING: Memperbarui timestamp online & status unit lain
+ */
+function startHeartbeatLoop(currentUser) {
+  setInterval(async () => {
+    if (!currentUser || !currentUser.email) return;
+    try {
+      const res = await ApiService.sendHeartbeat(currentUser.email);
+      if (res && res.users) {
+        cachedUsersList = res.users;
+        renderOnlineUnitsWidget(cachedUsersList);
+      }
+    } catch (e) {
+      // Quiet fail for background heartbeat
+    }
+  }, 12000);
+}
+
+/**
+ * LIVE REALTIME DATA POLLING: Mengecek entri debitur baru dari unit lain
+ */
+function startRealtimeDataPolling(currentUser) {
+  setInterval(async () => {
+    try {
+      const result = await ApiService.fetchData();
+      updateSignalStatus(true, result.pingMs || 80);
+
+      if (result.users) {
+        cachedUsersList = result.users;
+        renderOnlineUnitsWidget(cachedUsersList);
+      }
+
+      if (Array.isArray(result.data)) {
+        const currentCount = result.data.length;
+
+        // Jika ada penambahan data baru di luar aksi user ini (Terutama di Head Area)
+        if (!isFirstLoad && currentCount > lastDataRowCount) {
+          const newItemsCount = currentCount - lastDataRowCount;
+          const newestItem = result.data[result.data.length - 1];
+          
+          showToastNotification(`🔔 Data Baru Masuk! (${newItemsCount} Debitur baru oleh ${newestItem.nama_muh || 'Unit'})`);
+          
+          // Update Grid & Stat Cards secara smooth
+          if (GridEngine.gridApi) {
+            GridEngine.gridApi.setGridOption('rowData', result.data);
+          }
+          StatCardsModule.updateMetrics(result.data);
+        }
+
+        lastDataRowCount = currentCount;
+      }
+    } catch (err) {
+      updateSignalStatus(false, 0);
+    }
+  }, 8000);
+}
+
+/**
+ * UPDATE BADGE SINYAL ONLINE & LATENCY PING
+ */
+function updateSignalStatus(isOnline, pingMs) {
+  const dot = document.getElementById("signal-dot");
+  const text = document.getElementById("signal-text");
+  
+  if (!dot || !text) return;
+
+  if (isOnline) {
+    dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+    text.innerText = `Connected (${pingMs}ms)`;
+  } else {
+    dot.className = "w-2 h-2 rounded-full bg-red-400";
+    text.innerText = "Offline / Disconnected";
+  }
+}
+
+/**
+ * RENDER WIDGET KEPALA UNIT YANG SEDANG ONLINE/LOGIN
+ */
+function renderOnlineUnitsWidget(users) {
+  const container = document.getElementById("online-units-badges");
+  if (!container || !Array.isArray(users)) return;
+
+  const now = new Date().getTime();
+  // Filter user yang melakukan aktivitas/ping dalam 45 detik terakhir
+  const onlineUsers = users.filter(u => {
+    if (!u.last_active) return false;
+    const lastActiveTime = new Date(u.last_active).getTime();
+    return (now - lastActiveTime) < 45000;
+  });
+
+  if (onlineUsers.length === 0) {
+    container.innerHTML = `<span class="text-red-300 text-[10px] italic">Tidak ada unit lain online</span>`;
+    return;
+  }
+
+  container.innerHTML = onlineUsers.map(u => `
+    <span class="bg-red-900 border border-red-500 text-white font-semibold text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm" title="${u.email} (${u.lokasi})">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+      ${u.username}
+    </span>
+  `).join("");
+}
+
+/**
+ * NOTIFIKASI TOAST MELAYANG
+ */
+function showToastNotification(message) {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  toast.className = "pointer-events-auto bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border-l-4 border-emerald-500 text-xs font-semibold flex items-center gap-3 transition-all transform translate-y-2 opacity-0";
+  toast.innerHTML = `
+    <span>${message}</span>
+    <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white font-bold ml-2">&times;</button>
+  `;
+
+  container.appendChild(toast);
+
+  // Trigger Animation
+  setTimeout(() => {
+    toast.classList.remove("translate-y-2", "opacity-0");
+  }, 50);
+
+  // Auto Dismiss after 6 seconds
+  setTimeout(() => {
+    toast.classList.add("opacity-0", "translate-y-2");
+    setTimeout(() => toast.remove(), 300);
+  }, 6000);
+}
 
 function showLoginModal() {
   const settings = AuthService.getBankSettings();
@@ -119,7 +270,6 @@ async function openSettingsModal() {
     document.getElementById("set-head-password").value = settings.head_password || "";
   }
 
-  // Load ulang daftar user terbaru dari server
   try {
     const res = await ApiService.fetchData();
     if (res.users) cachedUsersList = res.users;
@@ -170,11 +320,9 @@ async function openSettingsModal() {
     try {
       showLoading(true);
       if (sheetRow) {
-        // Mode Update
         await ApiService.updateUser(payload);
         alert(`User Unit ${payload.email} berhasil diperbarui!`);
       } else {
-        // Mode Tambah Baru
         await ApiService.addUser(payload);
         alert(`User Unit ${payload.email} berhasil didaftarkan!`);
       }
