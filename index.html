@@ -102,18 +102,20 @@
 
   </main>
 
-  <!-- ================= MODAL TAB PENGATURAN BANK ================= -->
+  <!-- ================= MODAL TAB PENGATURAN BANK & MANAJEMEN USER ================= -->
   <div id="modal-settings" class="hidden fixed inset-0 bg-slate-900 bg-opacity-80 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-red-700 p-6 space-y-6">
+    <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-red-700 p-6 space-y-6">
+      
+      <!-- Modal Header -->
       <div class="flex items-center justify-between border-b pb-3">
         <div>
           <h2 class="text-lg font-bold text-slate-800">⚙️ Pengaturan Bank & Manajemen User Unit</h2>
-          <p class="text-xs text-slate-500">Ubah profil bank, info KCP, login Head, serta daftarkan user Kepala Unit baru.</p>
+          <p class="text-xs text-slate-500">Ubah profil bank, info KCP, login Head, serta daftarkan, edit, & hapus user unit.</p>
         </div>
         <button id="btn-close-settings" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">&times;</button>
       </div>
 
-      <!-- FORM PROFIL BANK & LOGIN HEAD -->
+      <!-- FORM 1: PROFIL BANK & LOGIN HEAD -->
       <form id="form-bank-settings" class="space-y-4 border-b pb-6">
         <h3 class="text-xs font-bold text-red-700 uppercase tracking-wider">1. Ubah Profil, KCP & Login Head</h3>
         
@@ -135,14 +137,19 @@
             <input type="password" id="set-head-password" required class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-red-600 focus:outline-none" />
           </div>
         </div>
-        <button type="submit" class="bg-red-700 hover:bg-red-800 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors shadow">
+        <button type="submit" class="bg-red-700 hover:bg-red-800 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors shadow cursor-pointer">
           Simpan Profil Bank
         </button>
       </form>
 
-      <!-- FORM TAMBAH USER KEPALA UNIT (MUH) -->
-      <form id="form-add-user" class="space-y-4">
-        <h3 class="text-xs font-bold text-red-700 uppercase tracking-wider">2. Penambahan User Kepala Unit (MUH)</h3>
+      <!-- FORM 2: TAMBAH / EDIT USER KEPALA UNIT (MUH) -->
+      <form id="form-user-unit" class="space-y-4 border-b pb-6">
+        <div class="flex items-center justify-between">
+          <h3 id="form-user-title" class="text-xs font-bold text-red-700 uppercase tracking-wider">2. Penambahan User Kepala Unit (MUH)</h3>
+          <button type="button" id="btn-cancel-edit-user" class="hidden text-xs text-slate-500 hover:text-red-700 underline cursor-pointer">Batal Edit</button>
+        </div>
+        
+        <input type="hidden" id="user-sheet-row" value="" />
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
@@ -162,10 +169,34 @@
             <input type="text" id="user-lokasi" placeholder="Contoh: Sentra Cikarang" required class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-red-600 focus:outline-none" />
           </div>
         </div>
-        <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors shadow">
+        <button type="submit" id="btn-submit-user" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors shadow cursor-pointer">
           + Daftarkan User Unit
         </button>
       </form>
+
+      <!-- TABEL DAFTAR USER UNIT TERDAFTAR -->
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Daftar Cabang / User Unit Terdaftar</h3>
+        <div class="overflow-x-auto border border-slate-200 rounded-lg">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead class="bg-slate-800 text-white text-[11px] uppercase tracking-wider">
+              <tr>
+                <th class="p-2.5 border-b">Role</th>
+                <th class="p-2.5 border-b">Nama User</th>
+                <th class="p-2.5 border-b">Email Login</th>
+                <th class="p-2.5 border-b">Lokasi / Sentra</th>
+                <th class="p-2.5 border-b text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="user-table-body" class="divide-y divide-slate-200 bg-white">
+              <tr>
+                <td colspan="5" class="p-4 text-center text-slate-400 font-medium">Memuat daftar user unit...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   </div>
 
