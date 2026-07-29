@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * GRIDENGINE.JS - Presisi Layout & Flexible Column Fitting
+ * GRIDENGINE.JS - Ultra Compact 18 Column Auto-Wrap Engine
  * ==========================================================
  */
 
@@ -11,68 +11,65 @@ import { StatCardsModule } from './statCards.js';
 export const GridEngine = {
   gridApi: null,
 
-  /**
-   * Menginisialisasi AG-Grid v31 dengan Auto Column Fitting
-   */
   initGrid: function(containerId, initialData) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
     const isHeadArea = AuthService.isHeadArea();
 
-    // Definisi 18 Kolom Presisi
+    // Definisi 18 Kolom Presisi dengan Ukuran Kompak setara Google Sheets
     const columnDefs = [
       { 
         headerName: "NO", 
         valueGetter: "node.rowIndex + 1", 
-        minWidth: 60,
-        maxWidth: 80, 
+        minWidth: 35,
+        maxWidth: 45, 
         pinned: 'left', 
         editable: false,
         cellClass: 'bg-slate-100 font-bold text-slate-600 text-center'
       },
-      { headerName: "NAMA SENTRA", field: "nama_sentra", minWidth: 130, editable: !isHeadArea },
-      { headerName: "NAMA MUH", field: "nama_muh", minWidth: 120, editable: !isHeadArea },
-      { headerName: "NAMA SM", field: "nama_sm", minWidth: 130, editable: !isHeadArea },
-      { headerName: "NAMA DEBITUR", field: "nama_debitur", minWidth: 160, editable: !isHeadArea, cellClass: 'font-bold text-red-700' },
-      { headerName: "BIDANG USAHA", field: "bidang_usaha", minWidth: 130, editable: !isHeadArea },
-      { headerName: "NO TABUNGAN", field: "no_tabungan", minWidth: 130, editable: !isHeadArea },
-      { headerName: "NO PINJAMAN", field: "no_pinjaman", minWidth: 130, editable: !isHeadArea },
+      { headerName: "NAMA SENTRA", field: "nama_sentra", minWidth: 80, editable: !isHeadArea },
+      { headerName: "NAMA MUH", field: "nama_muh", minWidth: 70, editable: !isHeadArea },
+      { headerName: "NAMA SM", field: "nama_sm", minWidth: 70, editable: !isHeadArea },
+      { headerName: "NAMA DEBITUR", field: "nama_debitur", minWidth: 100, editable: !isHeadArea, cellClass: 'font-bold text-red-700' },
+      { headerName: "BIDANG USAHA", field: "bidang_usaha", minWidth: 80, editable: !isHeadArea },
+      { headerName: "NO TABUNGAN", field: "no_tabungan", minWidth: 80, editable: !isHeadArea },
+      { headerName: "NO PINJAMAN", field: "no_pinjaman", minWidth: 80, editable: !isHeadArea },
       { 
         headerName: "LINE PROSES", 
         field: "line_proses", 
-        minWidth: 120, 
+        minWidth: 70, 
         editable: !isHeadArea,
         cellEditor: 'agSelectCellEditor',
         cellEditorParams: { values: ['SM', 'BOOKING', 'REJECT', 'KC', 'RBM'] }
       },
       { 
-        headerName: "PLAFON (IDR)", 
+        headerName: "PLAFON", 
         field: "plafon", 
-        minWidth: 140, 
+        minWidth: 80, 
         editable: !isHeadArea,
         valueFormatter: params => {
-          if (!params.value) return "Rp 0";
-          return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(params.value);
+          if (!params.value) return "0";
+          return new Intl.NumberFormat("id-ID").format(params.value);
         }
       },
       { 
         headerName: "NETT BOOKING", 
         field: "nett_booking", 
-        minWidth: 140, 
+        minWidth: 80, 
         editable: !isHeadArea,
         valueFormatter: params => {
-          if (!params.value) return "Rp 0";
-          return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(params.value);
+          if (!params.value) return "0";
+          return new Intl.NumberFormat("id-ID").format(params.value);
         }
       },
-      { headerName: "TGL CAIR", field: "tgl_cair", minWidth: 120, editable: !isHeadArea },
-      { headerName: "Periode Bulan", field: "periode_bulan", minWidth: 110, editable: !isHeadArea },
-      { headerName: "QRIS", field: "qris", minWidth: 80, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
-      { headerName: "JAKONE ABANK", field: "jakone_abank", minWidth: 120, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
-      { headerName: "JAKONE MOBILE", field: "jakone_mobile", minWidth: 130, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
-      { headerName: "EDC", field: "edc", minWidth: 80, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
-      { headerName: "KETERANGAN", field: "keterangan", minWidth: 160, editable: !isHeadArea }
+      { headerName: "TGL CAIR", field: "tgl_cair", minWidth: 75, editable: !isHeadArea },
+      { headerName: "Periode Bulan", field: "periode_bulan", minWidth: 65, editable: !isHeadArea },
+      { headerName: "QRIS", field: "qris", minWidth: 45, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
+      { headerName: "JAKONE ABANK", field: "jakone_abank", minWidth: 65, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
+      { headerName: "JAKONE MOBILE", field: "jakone_mobile", minWidth: 65, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
+      { headerName: "EDC", field: "edc", minWidth: 45, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
+      { headerName: "KETERANGAN", field: "keterangan", minWidth: 90, editable: !isHeadArea }
     ];
 
     const gridOptions = {
@@ -83,12 +80,13 @@ export const GridEngine = {
         filter: true,
         resizable: true,
         editable: !isHeadArea,
-        flex: 1 // Membuat kolom mengisi ruang secara proporsional
+        flex: 1,                 // Membagi lebar layar secara proporsional
+        wrapHeaderText: true,   // FITUR KUNCI: Header Otomatis Turun Baris (Wrapped Text)
+        autoHeaderHeight: true  // FITUR KUNCI: Tinggi Header Otomatis Menyesuaikan Teks
       },
       rowSelection: 'single',
       animateRows: true,
       onGridReady: (params) => {
-        // Otomatis merentangkan kolom agar presisi 100% mengisi lebar layar
         params.api.sizeColumnsToFit();
       },
       onGridSizeChanged: (params) => {
@@ -99,7 +97,7 @@ export const GridEngine = {
         
         const statusEl = document.getElementById("sync-status");
         if (statusEl) {
-          statusEl.innerText = "💾 Menyimpan perubahan...";
+          statusEl.innerText = "💾 Menyimpan...";
           statusEl.className = "text-amber-600 font-semibold text-xs";
         }
 
@@ -168,7 +166,7 @@ export const GridEngine = {
 
     const statusEl = document.getElementById("sync-status");
     if (statusEl) {
-      statusEl.innerText = "💾 Menyimpan baris baru...";
+      statusEl.innerText = "💾 Menyimpan...";
       statusEl.className = "text-amber-600 font-semibold text-xs";
     }
 
