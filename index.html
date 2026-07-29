@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bank Daily Unit Reporting Web App (17 Unit Area Head)</title>
+  <title id="page-title">Bank Daily Unit Reporting Web App</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -26,12 +26,17 @@
           BK
         </div>
         <div>
-          <h1 class="text-base font-bold uppercase tracking-wide">Bank Daily Unit Reporting</h1>
-          <p class="text-[11px] text-red-200">Enterprise Reporting Portal • Konsolidasi 17 Unit Area Head</p>
+          <h1 id="header-bank-name" class="text-base font-bold uppercase tracking-wide">BANK DAILY UNIT REPORTING</h1>
+          <p id="header-kcp-info" class="text-[11px] text-red-200">Enterprise Reporting Portal • Konsolidasi 17 Unit Area Head</p>
         </div>
       </div>
       
-      <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-3">
+        <!-- Tombol Pengaturan khusus Head Area -->
+        <button id="btn-open-settings" class="hidden bg-red-800 hover:bg-red-900 text-white border border-red-600 font-semibold px-3 py-1.5 rounded-lg text-xs transition-colors shadow flex items-center gap-1.5 cursor-pointer">
+          ⚙️ Pengaturan Bank
+        </button>
+
         <div id="user-info-display" class="text-xs bg-red-800 bg-opacity-60 px-3 py-1.5 rounded-lg border border-red-600 font-medium">
           Memuat sesi pengguna...
         </div>
@@ -42,42 +47,33 @@
     </div>
   </header>
 
-  <!-- ================= MAIN CONTENT CONTAINER (PRESISI FULL WIDTH) ================= -->
+  <!-- ================= MAIN CONTENT CONTAINER ================= -->
   <main class="flex-1 w-full px-4 md:px-8 py-6 space-y-6">
 
-    <!-- TOP STAT CARDS (METRICS FULL WIDTH) -->
+    <!-- TOP STAT CARDS -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 w-full">
-      <!-- Card 1: Total Unit -->
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
         <div>
           <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Unit Terpantau</span>
           <h2 id="stat-total-unit" class="text-2xl font-bold text-slate-800 mt-1">17 Unit Aktif</h2>
         </div>
-        <div class="p-3 bg-red-50 text-red-600 rounded-xl text-xl">
-          🏢
-        </div>
+        <div class="p-3 bg-red-50 text-red-600 rounded-xl text-xl">🏢</div>
       </div>
 
-      <!-- Card 2: Total Berkas -->
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
         <div>
           <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Berkas Debitur</span>
           <h2 id="stat-total-berkas" class="text-2xl font-bold text-slate-800 mt-1">0 Debitur</h2>
         </div>
-        <div class="p-3 bg-blue-50 text-blue-600 rounded-xl text-xl">
-          📁
-        </div>
+        <div class="p-3 bg-blue-50 text-blue-600 rounded-xl text-xl">📁</div>
       </div>
 
-      <!-- Card 3: Total Plafon -->
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between sm:col-span-2 lg:col-span-1">
         <div>
           <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Nominal Plafon</span>
           <h2 id="stat-total-plafon" class="text-2xl font-bold text-emerald-600 mt-1">Rp 0</h2>
         </div>
-        <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl text-xl">
-          💰
-        </div>
+        <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl text-xl">💰</div>
       </div>
     </section>
 
@@ -99,12 +95,79 @@
     <!-- NOTIFICATION CONTAINER -->
     <div id="notification-container" class="w-full"></div>
 
-    <!-- AG-GRID CONTAINER (PRESISI TERHADAP LAYAR) -->
+    <!-- AG-GRID CONTAINER -->
     <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-3 w-full">
       <div id="myGrid" class="ag-theme-alpine w-full h-[650px]"></div>
     </section>
 
   </main>
+
+  <!-- ================= MODAL TAB PENGATURAN BANK ================= -->
+  <div id="modal-settings" class="hidden fixed inset-0 bg-slate-900 bg-opacity-80 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-t-4 border-red-700 p-6 space-y-6">
+      <div class="flex items-center justify-between border-b pb-3">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800">⚙️ Pengaturan Bank & Manajemen User Unit</h2>
+          <p class="text-xs text-slate-500">Ubah profil bank, info KCP, login Head, serta daftarkan user Kepala Unit baru.</p>
+        </div>
+        <button id="btn-close-settings" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer">&times;</button>
+      </div>
+
+      <!-- FORM PROFIL BANK & LOGIN HEAD -->
+      <form id="form-bank-settings" class="space-y-4 border-b pb-6">
+        <h3 class="text-xs font-bold text-red-700 uppercase tracking-wider">1. Ubah Profil, KCP & Login Head</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Tampilan Bank *</label>
+            <input type="text" id="set-bank-name" required class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-red-600 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Info KCP / Unit Area Head *</label>
+            <input type="text" id="set-kcp-info" required class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-red-600 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Email Login Head *</label>
+            <input type="email" id="set-head-email" required class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-red-600 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Password Baru Login *</label>
+            <input type="password" id="set-head-password" required class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-red-600 focus:outline-none" />
+          </div>
+        </div>
+        <button type="submit" class="bg-red-700 hover:bg-red-800 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors shadow">
+          Simpan Profil Bank
+        </button>
+      </form>
+
+      <!-- FORM TAMBAH USER KEPALA UNIT (MUH) -->
+      <form id="form-add-user" class="space-y-4">
+        <h3 class="text-xs font-bold text-red-700 uppercase tracking-wider">2. Penambahan User Kepala Unit (MUH)</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Kepala Unit / Username *</label>
+            <input type="text" id="user-name" placeholder="Contoh: AKBAR / MUH Cikarang" required class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-red-600 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Email Perbankan Login *</label>
+            <input type="email" id="user-email" placeholder="muh.cikarang@k2c.com" required class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-red-600 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Password Login *</label>
+            <input type="password" id="user-password" placeholder="••••••••" required class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-red-600 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Lokasi Sentra / Unit *</label>
+            <input type="text" id="user-lokasi" placeholder="Contoh: Sentra Cikarang" required class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-red-600 focus:outline-none" />
+          </div>
+        </div>
+        <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors shadow">
+          + Daftarkan User Unit
+        </button>
+      </form>
+    </div>
+  </div>
 
   <!-- ================= GLOBAL LOADER MODAL ================= -->
   <div id="app-loader" class="fixed inset-0 bg-slate-900 bg-opacity-70 flex flex-col items-center justify-center z-40 space-y-3">
