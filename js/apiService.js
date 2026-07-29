@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APISERVICE.JS - HTTP Client (Settings & User Management Support)
+ * APISERVICE.JS - HTTP Client (Support User Unit CRUD)
  * ==========================================================
  */
 
@@ -19,7 +19,6 @@ export const ApiService = {
       }
       
       const result = await response.json();
-      
       if (result.status === "success") {
         return result;
       } else {
@@ -90,6 +89,48 @@ export const ApiService = {
       }
     } catch (error) {
       console.error("ApiService.addUser Error:", error);
+      throw error;
+    }
+  },
+
+  updateUser: async function(userData) {
+    try {
+      const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
+        method: "POST",
+        redirect: "follow",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "updateUser", data: userData })
+      });
+
+      const result = await response.json();
+      if (result.status === "success") {
+        return result.data;
+      } else {
+        throw new Error(result.message || "Gagal mengedit user unit.");
+      }
+    } catch (error) {
+      console.error("ApiService.updateUser Error:", error);
+      throw error;
+    }
+  },
+
+  deleteUser: async function(sheetRow) {
+    try {
+      const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
+        method: "POST",
+        redirect: "follow",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "deleteUser", sheetRow: sheetRow })
+      });
+
+      const result = await response.json();
+      if (result.status === "success") {
+        return result.data;
+      } else {
+        throw new Error(result.message || "Gagal menghapus user unit.");
+      }
+    } catch (error) {
+      console.error("ApiService.deleteUser Error:", error);
       throw error;
     }
   },
