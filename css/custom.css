@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * CUSTOM.CSS - Compact Enterprise Theme & Wrapped Header Styling
+ * CUSTOM.CSS - Compact Enterprise Theme & Explicit Grid Lines
  * ==========================================================
  */
 
@@ -12,17 +12,33 @@ body {
   color: #1e293b;
 }
 
-/* Custom Styling AG-Grid Kompak khas Google Sheets / Perbankan */
+/* Custom Styling AG-Grid dengan Garis Pemisah (Grid Lines) Tegas */
 .ag-theme-alpine {
   --ag-grid-size: 3px;
   --ag-list-item-height: 24px;
   --ag-font-size: 11px;
   --ag-font-family: 'Inter', sans-serif;
-  --ag-header-background-color: #b91c1c; /* Merah Perbankan Header (Red 700) */
-  --ag-header-foreground-color: #ffffff;  /* Teks Header Putih */
+  --ag-header-background-color: #b91c1c; /* Merah Perbankan Header */
+  --ag-header-foreground-color: #ffffff;
   --ag-header-cell-hover-background-color: #991b1b;
   --ag-selected-row-background-color: #fef2f2;
   --ag-row-hover-color: #fff1f2;
+  --ag-border-color: #cbd5e1; /* Warna garis border abu-abu tegas */
+}
+
+/* GARIS PEMISAH VERTIKAL & HORIZONTAL TEGAS PADA TANGGUL SEL */
+.ag-theme-alpine .ag-header-cell {
+  border-right: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+
+.ag-theme-alpine .ag-cell {
+  border-right: 1px solid #cbd5e1 !important; /* Garis Vertikal Antar Kolom */
+  border-bottom: 1px solid #e2e8f0 !important; /* Garis Horizontal Antar Baris */
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
 }
 
 /* Mengatur Teks Header agar Rapi saat Wrapped (Multi-line) */
@@ -36,16 +52,7 @@ body {
   letter-spacing: 0.02em;
 }
 
-/* Mengatur Alignment & Padding Sel Data agar Kompak */
-.ag-theme-alpine .ag-cell {
-  padding-left: 4px !important;
-  padding-right: 4px !important;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-}
-
-/* Custom Scrollbar tipis agar elegan jika diperlukan */
+/* Custom Scrollbar tipis */
 .ag-theme-alpine::-webkit-scrollbar {
   width: 6px;
   height: 6px;
