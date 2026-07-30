@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APP.JS - Flexible Date Normalizer, MUH Isolation & Tab Manager
+ * APP.JS - Ultra Fast User Unit Manager & Non-Blocking Loader
  * ==========================================================
  */
 
@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // KHUSUS HEAD AREA: Tampilkan tombol Pengaturan, Widget Unit Online & Filter MUH
+  // Pengaturan UI Berdasarkan Role
   if (AuthService.isHeadArea()) {
     const btnSet = document.getElementById("btn-open-settings");
     if (btnSet) btnSet.classList.remove("hidden");
@@ -42,29 +42,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (btnSet) btnSet.addEventListener("click", () => openSettingsModal());
   } else {
-    // UNTUK UNIT (MUH): SEMBUNYIKAN FILTER MUH!
+    // Sembunyikan Filter MUH khusus Akun Unit
     const wrapperFilterMuh = document.getElementById("wrapper-filter-muh");
     if (wrapperFilterMuh) wrapperFilterMuh.classList.add("hidden");
   }
 
   renderAppShell(currentUser);
-
-  // Bind Tab Switching & Filter Dynamic
   bindTabNavigation();
 
-  // Load awal data
+  // Load Awal Data (Fast Non-Blocking Path)
   await loadInitialAppData();
 
-  // Jalankan Loops Background
-  startHeartbeatLoop(currentUser);
-  startRealtimeDataPolling(currentUser);
+  // Background Workers (Tanpa Memblokir UI)
+  setTimeout(() => {
+    startHeartbeatLoop(currentUser);
+    startRealtimeDataPolling(currentUser);
+  }, 3000);
 
   bindButtons();
 });
 
 async function loadInitialAppData() {
+  showLoading(true);
   try {
-    showLoading(true);
     const result = await ApiService.fetchData();
     
     updateSignalStatus(true, result.pingMs || 100);
@@ -92,19 +92,18 @@ async function loadInitialAppData() {
     isFirstLoad = false;
   } catch (error) {
     updateSignalStatus(false, 0);
-    console.error("Gagal memuat data aplikasi:", error);
+    console.error("Gagal memuat data awal:", error);
+    GridEngine.initGrid("myGrid", []);
   } finally {
+    // JAMINAN MUTLAK: SPINNER LOADING WAJIB DITUTUP
     showLoading(false);
   }
 }
 
-/**
- * PARSER & PEMISAHAN DATA BULAN BERJALAN VS HISTORICAL LAPORAN FLEXIBLE
- */
 function processDataByPeriode(data) {
   const now = new Date();
-  const currentMonthNum = now.getMonth() + 1; // 1 - 12 (Contoh: 7 untuk Juli)
-  const currentYearNum = now.getFullYear();   // 2026
+  const currentMonthNum = now.getMonth() + 1;
+  const currentYearNum = now.getFullYear();
 
   currentMonthData = [];
   historicalData = [];
@@ -116,7 +115,6 @@ function processDataByPeriode(data) {
     let itemYear = currentYearNum;
     let itemPeriodeStr = `${currentMonthNum}/${currentYearNum}`;
 
-    // Parsing Tanggal Cair / Periode Bulan flexible
     const rawDateStr = item.tgl_cair || item.periode_bulan;
     if (rawDateStr) {
       const parsedDate = new Date(rawDateStr);
@@ -136,7 +134,6 @@ function processDataByPeriode(data) {
 
     periodeSet.add(itemPeriodeStr);
 
-    // KONDISI PENENTUAN: BILA BULAN & TAHUN SAMA DENGAN SAAT INI (JULI 2026), MASUK DASHBOARD UTAMA!
     if (itemMonth === currentMonthNum && itemYear === currentYearNum) {
       currentMonthData.push(item);
     } else {
@@ -147,9 +144,6 @@ function processDataByPeriode(data) {
   populatePeriodeDropdownOptions(Array.from(periodeSet));
 }
 
-/**
- * NAVIGASI TAB DASHBOARD (BULAN INI) VS LAPORAN HISTORICAL
- */
 function bindTabNavigation() {
   const tabDashboard = document.getElementById("tab-dashboard");
   const tabLaporan = document.getElementById("tab-laporan");
@@ -260,7 +254,7 @@ function startHeartbeatLoop(currentUser) {
     } catch (e) {
       // Non-blocking
     }
-  }, 12000);
+  }, 15000);
 }
 
 function startRealtimeDataPolling(currentUser) {
@@ -272,6 +266,7 @@ function startRealtimeDataPolling(currentUser) {
       if (result.users) {
         cachedUsersList = result.users;
         renderOnlineUnitsWidget(cachedUsersList);
+        populateMuhDropdownOptions(cachedUsersList);
       }
 
       if (Array.isArray(result.data)) {
@@ -294,7 +289,7 @@ function startRealtimeDataPolling(currentUser) {
     } catch (err) {
       updateSignalStatus(false, 0);
     }
-  }, 8000);
+  }, 12000);
 }
 
 function updateSignalStatus(isOnline, pingMs) {
@@ -424,13 +419,8 @@ async function openSettingsModal() {
     document.getElementById("set-head-password").value = settings.head_password || "";
   }
 
-  try {
-    const res = await ApiService.fetchData();
-    if (res.users) cachedUsersList = res.users;
-    renderUserTable(cachedUsersList);
-  } catch (e) {
-    renderUserTable(cachedUsersList);
-  }
+  // Render cepat tabel user dari cache tanpa menunggu network call
+  renderUserTable(cachedUsersList);
 
   document.getElementById("btn-close-settings").onclick = () => {
     modal.classList.add("hidden");
@@ -439,6 +429,9 @@ async function openSettingsModal() {
 
   document.getElementById("form-bank-settings").onsubmit = async (e) => {
     e.preventDefault();
+    const btnSubmit = e.target.querySelector('button[type="submit"]');
+    const originalText = btnSubmit ? btnSubmit.innerText : "Simpan Profil Bank";
+
     const payload = {
       bank_name: document.getElementById("set-bank-name").value,
       kcp_info: document.getElementById("set-kcp-info").value,
@@ -448,47 +441,78 @@ async function openSettingsModal() {
     };
 
     try {
-      showLoading(true);
+      if (btnSubmit) {
+        btnSubmit.innerText = "⏳ Menyimpan...";
+        btnSubmit.disabled = true;
+      }
+
       await ApiService.saveSettings(payload);
       AuthService.saveBankSettingsLocal(payload);
       alert("Profil Bank berhasil diperbarui!");
       window.location.reload();
     } catch (err) {
-      showLoading(false);
       alert("Gagal menyimpan pengaturan: " + err.message);
+    } finally {
+      if (btnSubmit) {
+        btnSubmit.innerText = originalText;
+        btnSubmit.disabled = false;
+      }
     }
   };
 
+  /**
+   * OPTIMISTIC UI SUBMIT FORM USER UNIT (FAST NON-BLOCKING)
+   */
   document.getElementById("form-user-unit").onsubmit = async (e) => {
     e.preventDefault();
     const sheetRow = document.getElementById("user-sheet-row").value;
+    const btnSubmitUser = document.getElementById("btn-submit-user");
+    const originalText = btnSubmitUser ? btnSubmitUser.innerText : "+ Daftarkan User Unit";
+
     const payload = {
       sheet_row: sheetRow ? parseInt(sheetRow) : null,
-      username: document.getElementById("user-name").value,
-      email: document.getElementById("user-email").value,
-      password: document.getElementById("user-password").value,
-      lokasi: document.getElementById("user-lokasi").value,
+      username: document.getElementById("user-name").value.trim(),
+      email: document.getElementById("user-email").value.trim(),
+      password: document.getElementById("user-password").value.trim(),
+      lokasi: document.getElementById("user-lokasi").value.trim(),
       role: "MUH"
     };
 
     try {
-      showLoading(true);
+      if (btnSubmitUser) {
+        btnSubmitUser.innerText = "⏳ Memproses...";
+        btnSubmitUser.disabled = true;
+      }
+
       if (sheetRow) {
+        // Mode Update
         await ApiService.updateUser(payload);
+        const idx = cachedUsersList.findIndex(u => String(u.sheet_row) === String(sheetRow));
+        if (idx !== -1) {
+          cachedUsersList[idx] = { ...cachedUsersList[idx], ...payload };
+        }
         alert(`User Unit ${payload.email} berhasil diperbarui!`);
       } else {
-        await ApiService.addUser(payload);
+        // Mode Tambah Baru
+        const res = await ApiService.addUser(payload);
+        payload.sheet_row = (res && res.sheet_row) ? res.sheet_row : (cachedUsersList.length + 5);
+        cachedUsersList.push(payload);
         alert(`User Unit ${payload.email} berhasil didaftarkan!`);
       }
 
       resetUserForm();
-      const res = await ApiService.fetchData();
-      if (res.users) cachedUsersList = res.users;
       renderUserTable(cachedUsersList);
-      showLoading(false);
+      populateMuhDropdownOptions(cachedUsersList);
+
     } catch (err) {
+      alert("Gagal memproses user unit: " + err.message);
+    } finally {
+      if (btnSubmitUser) {
+        btnSubmitUser.innerText = originalText;
+        btnSubmitUser.disabled = false;
+      }
+      // Dilarang membiarkan modal loader mengunci layar!
       showLoading(false);
-      alert("Gagal memproses user: " + err.message);
     }
   };
 
@@ -546,17 +570,19 @@ window.deleteUserUnit = async function(sheetRow, email) {
   if (!confirm(`Apakah Anda yakin ingin menghapus user unit ${email}? User tidak akan bisa login lagi.`)) return;
 
   try {
-    showLoading(true);
+    const idx = cachedUsersList.findIndex(u => String(u.sheet_row) === String(sheetRow));
+    if (idx !== -1) {
+      cachedUsersList.splice(idx, 1);
+    }
+    renderUserTable(cachedUsersList);
+    populateMuhDropdownOptions(cachedUsersList);
+
     await ApiService.deleteUser(sheetRow);
     alert(`User unit ${email} berhasil dihapus!`);
-    
-    const res = await ApiService.fetchData();
-    if (res.users) cachedUsersList = res.users;
-    renderUserTable(cachedUsersList);
-    showLoading(false);
   } catch (err) {
-    showLoading(false);
     alert("Gagal menghapus user: " + err.message);
+  } finally {
+    showLoading(false);
   }
 };
 
