@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APISERVICE.JS - Optimized Ping & Fast Fetch Engine
+ * APISERVICE.JS - Optimized Ping, Fast Fetch & K2C License Gateway
  * ==========================================================
  */
 
@@ -43,6 +43,51 @@ export const ApiService = {
       }
     } catch (error) {
       console.error("ApiService.fetchData Error:", error);
+      throw error;
+    }
+  },
+
+  checkLicense: async function() {
+    try {
+      const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
+        method: "POST",
+        redirect: "follow",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "checkLicense" })
+      });
+      
+      const result = await response.json();
+      if (result.status === "success") {
+        return result.data;
+      } else {
+        return { status: "EXPIRED", daysLeft: 0, message: result.message || "Gagal verifikasi lisensi." };
+      }
+    } catch (error) {
+      console.error("ApiService.checkLicense Error:", error);
+      return { status: "EXPIRED", daysLeft: 0, message: "Error koneksi verifikasi lisensi." };
+    }
+  },
+
+  claimLicense: async function(serialKey) {
+    try {
+      const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
+        method: "POST",
+        redirect: "follow",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ 
+          action: "claimLicense", 
+          serialKey: serialKey 
+        })
+      });
+      
+      const result = await response.json();
+      if (result.status === "success") {
+        return result.data;
+      } else {
+        throw new Error(result.message || "Gagal mengklaim Serial Key.");
+      }
+    } catch (error) {
+      console.error("ApiService.claimLicense Error:", error);
       throw error;
     }
   },
