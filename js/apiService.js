@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APISERVICE.JS - Ultra Fast Non-Blocking API Engine
+ * APISERVICE.JS - Ultra Clean & Silent Network Engine
  * ==========================================================
  */
 
@@ -15,7 +15,6 @@ export const ApiService = {
 
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
         method: "POST",
-        redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ 
           action: "getData", 
@@ -28,12 +27,8 @@ export const ApiService = {
       });
       
       const pingMs = Math.round(performance.now() - startTime);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
       const result = await response.json();
+
       if (result.status === "success") {
         const payloadData = result.data.data ? result.data : result;
         payloadData.pingMs = pingMs;
@@ -42,34 +37,30 @@ export const ApiService = {
         throw new Error(result.message || "Gagal mengambil data dari server.");
       }
     } catch (error) {
-      console.error("ApiService.fetchData Error:", error);
+      console.warn("ApiService.fetchData Warning:", error.message);
       throw error;
     }
   },
 
   checkLicense: async function() {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 Detik Timeout Safety
+      // Safe Timeout tanpa memicu AbortError di konsol browser
+      const timeoutPromise = new Promise((resolve) => 
+        setTimeout(() => resolve({ status: "ACTIVE", daysLeft: 30, message: "License Timeout Fallback" }), 5000)
+      );
 
-      const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
-        method: "POST",
-        redirect: "follow",
-        signal: controller.signal,
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "checkLicense" })
-      });
-      
-      clearTimeout(timeoutId);
-      const result = await response.json();
-      if (result.status === "success") {
-        return result.data;
-      } else {
-        return { status: "ACTIVE", daysLeft: 30, message: "Standby Trial" };
-      }
+      const fetchPromise = (async () => {
+        const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "checkLicense" })
+        });
+        const result = await response.json();
+        return result.status === "success" ? result.data : { status: "ACTIVE", daysLeft: 30 };
+      })();
+
+      return await Promise.race([fetchPromise, timeoutPromise]);
     } catch (error) {
-      console.warn("ApiService.checkLicense Timeout/Fallback:", error);
-      // Fallback aman: Jangan kunci user jika server lisensi lambat
       return { status: "ACTIVE", daysLeft: 30, message: "Offline Status" };
     }
   },
@@ -78,7 +69,6 @@ export const ApiService = {
     try {
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
         method: "POST",
-        redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ 
           action: "claimLicense", 
@@ -102,7 +92,6 @@ export const ApiService = {
     try {
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
         method: "POST",
-        redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: "heartbeat", email: email })
       });
@@ -118,7 +107,6 @@ export const ApiService = {
     try {
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
         method: "POST",
-        redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: "login", email: email, password: password })
       });
@@ -139,7 +127,6 @@ export const ApiService = {
     try {
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
         method: "POST",
-        redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: "saveSettings", data: settingsData })
       });
@@ -160,7 +147,6 @@ export const ApiService = {
     try {
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
         method: "POST",
-        redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: "addUser", data: userData })
       });
@@ -181,7 +167,6 @@ export const ApiService = {
     try {
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
         method: "POST",
-        redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: "updateUser", data: userData })
       });
@@ -202,7 +187,6 @@ export const ApiService = {
     try {
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
         method: "POST",
-        redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: "deleteUser", sheetRow: sheetRow })
       });
@@ -223,7 +207,6 @@ export const ApiService = {
     try {
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
         method: "POST",
-        redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: "save", data: rowData })
       });
@@ -244,7 +227,6 @@ export const ApiService = {
     try {
       const response = await fetch(APP_CONFIG.GAS_WEB_APP_URL, {
         method: "POST",
-        redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: "delete", rowIndex: rowIndex })
       });
