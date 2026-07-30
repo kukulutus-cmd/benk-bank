@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APP.JS - Clickable License Guard & HWID Interactive Modal
+ * APP.JS - Stale-While-Revalidate Instant Load Engine
  * ==========================================================
  */
 
@@ -20,6 +20,7 @@ let lastDataRowCount = 0;
 let isFirstLoad = true;
 
 const HWID_CLIENT = "WEB-APP-K2C-BANK";
+const LOCAL_DATA_CACHE_KEY = "BANK_APP_MASTER_DATA_CACHE";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const currentUser = AuthService.getCurrentUser();
@@ -53,10 +54,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindTabNavigation();
   bindLicenseInteractiveModal();
 
-  // Load Awal Data
-  await loadInitialAppData();
+  // ⚡ INSTANT LOAD: Coba muat dari Local Cache terlebih dahulu!
+  const hasCachedData = loadDataFromLocalCache();
 
-  // Background Workers
+  if (!hasCachedData) {
+    // Jika benar-benar kosong/baru pertama kali, tampilkan spinner loader
+    showLoading(true);
+  } else {
+    // Jika cache ada, langsung sembunyikan spinner loader
+    showLoading(false);
+    updateSignalStatus(true, 50, "Meningkatkan Data Local...");
+  }
+
+  // Fetch Data Terbaru dari Server (Asynchronous Background Sync)
+  await fetchAndRefreshAppData();
+
+  // Background Workers Loop
   setTimeout(() => {
     checkLicenseAsync();
     startHeartbeatLoop(currentUser);
@@ -66,8 +79,36 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindButtons();
 });
 
-async function loadInitialAppData() {
-  showLoading(true);
+/**
+ * Memuat data instan dari Local Storage Cache
+ */
+function loadDataFromLocalCache() {
+  try {
+    const rawCache = localStorage.getItem(LOCAL_DATA_CACHE_KEY);
+    if (!rawCache) return false;
+
+    const parsedCache = JSON.parse(rawCache);
+    if (Array.isArray(parsedCache) && parsedCache.length > 0) {
+      allMasterData = parsedCache;
+      processDataByPeriode(allMasterData);
+
+      const initialDisplayData = (activeTab === "DASHBOARD") ? currentMonthData : historicalData;
+      lastDataRowCount = initialDisplayData.length;
+
+      StatCardsModule.updateMetrics(initialDisplayData);
+      GridEngine.initGrid("myGrid", initialDisplayData);
+      return true;
+    }
+  } catch (e) {
+    console.warn("Gagal membaca local cache data:", e);
+  }
+  return false;
+}
+
+/**
+ * Mengambil data terbaru dari Google Sheets & memperbarui cache
+ */
+async function fetchAndRefreshAppData() {
   try {
     const result = await ApiService.fetchData();
     
@@ -84,20 +125,39 @@ async function loadInitialAppData() {
       populateMuhDropdownOptions(cachedUsersList);
     }
 
-    allMasterData = Array.isArray(result.data) ? result.data : [];
-    processDataByPeriode(allMasterData);
+    if (Array.isArray(result.data)) {
+      allMasterData = result.data;
+      
+      // Simpan ke Local Storage untuk F5 Instant Load berikutnya!
+      try {
+        localStorage.setItem(LOCAL_DATA_CACHE_KEY, JSON.stringify(allMasterData));
+      } catch (e) {
+        console.warn("Gagal menyimpan local cache:", e);
+      }
 
-    const initialDisplayData = (activeTab === "DASHBOARD") ? currentMonthData : historicalData;
-    lastDataRowCount = initialDisplayData.length;
+      processDataByPeriode(allMasterData);
 
-    StatCardsModule.updateMetrics(initialDisplayData);
-    GridEngine.initGrid("myGrid", initialDisplayData);
+      const displayData = (activeTab === "DASHBOARD") ? currentMonthData : historicalData;
+      lastDataRowCount = displayData.length;
+
+      StatCardsModule.updateMetrics(displayData);
+
+      // Jika Grid sudah terinisialisasi, set data baru. Jika belum, inisialisasi.
+      if (GridEngine.gridApi) {
+        GridEngine.gridApi.setGridOption('rowData', displayData);
+        GridEngine.applyCustomFilters();
+      } else {
+        GridEngine.initGrid("myGrid", displayData);
+      }
+    }
     
     isFirstLoad = false;
   } catch (error) {
     updateSignalStatus(false, 0);
-    console.error("Gagal memuat data awal:", error);
-    GridEngine.initGrid("myGrid", []);
+    console.error("Gagal sinkronisasi data dari server:", error);
+    if (!allMasterData || allMasterData.length === 0) {
+      GridEngine.initGrid("myGrid", []);
+    }
   } finally {
     showLoading(false);
   }
@@ -160,7 +220,7 @@ function bindLicenseInteractiveModal() {
   const formInteractive = document.getElementById("form-claim-interactive");
   const formLock = document.getElementById("form-claim-license");
 
-  // A. Buka Modal Lisensi saat Badge Header Diklik
+  // Buka Modal Lisensi saat Badge Header Diklik
   if (btnOpenModal && modalInteractive) {
     btnOpenModal.addEventListener("click", () => {
       document.getElementById("display-hwid-client").innerText = HWID_CLIENT;
@@ -171,14 +231,14 @@ function bindLicenseInteractiveModal() {
     });
   }
 
-  // B. Tutup Modal
+  // Tutup Modal
   if (btnCloseModal && modalInteractive) {
     btnCloseModal.addEventListener("click", () => {
       modalInteractive.classList.add("hidden");
     });
   }
 
-  // C. Copy HWID Client Button
+  // Copy HWID Client Button
   if (btnCopyHwid) {
     btnCopyHwid.addEventListener("click", () => {
       navigator.clipboard.writeText(HWID_CLIENT);
@@ -186,7 +246,7 @@ function bindLicenseInteractiveModal() {
     });
   }
 
-  // D. Form Submit Perpanjangan via Modal Interaktif
+  // Form Submit Perpanjangan via Modal Interaktif
   if (formInteractive) {
     formInteractive.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -220,7 +280,7 @@ function bindLicenseInteractiveModal() {
     });
   }
 
-  // E. Form Submit via Lock Screen
+  // Form Submit via Lock Screen
   if (formLock) {
     formLock.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -458,7 +518,7 @@ function startRealtimeDataPolling(currentUser) {
   }, 12000);
 }
 
-function updateSignalStatus(isOnline, pingMs) {
+function updateSignalStatus(isOnline, pingMs, customText) {
   const dot = document.getElementById("signal-dot");
   const text = document.getElementById("signal-text");
   
@@ -466,7 +526,7 @@ function updateSignalStatus(isOnline, pingMs) {
 
   if (isOnline) {
     dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
-    text.innerText = `Connected (${pingMs}ms)`;
+    text.innerText = customText || `Connected (${pingMs}ms)`;
   } else {
     dot.className = "w-2 h-2 rounded-full bg-red-400";
     text.innerText = "Offline / Disconnected";
