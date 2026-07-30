@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APP.JS - Fast Parallel Boot Engine & Resilient License Guard
+ * APP.JS - Clickable License Guard & HWID Interactive Modal
  * ==========================================================
  */
 
@@ -13,10 +13,13 @@ let allMasterData = [];
 let currentMonthData = [];
 let historicalData = [];
 let cachedUsersList = [];
+let currentLicenseStatus = null;
 
 let activeTab = "DASHBOARD"; // "DASHBOARD" | "LAPORAN"
 let lastDataRowCount = 0;
 let isFirstLoad = true;
+
+const HWID_CLIENT = "WEB-APP-K2C-BANK";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const currentUser = AuthService.getCurrentUser();
@@ -42,21 +45,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (btnSet) btnSet.addEventListener("click", () => openSettingsModal());
   } else {
-    // Sembunyikan Filter MUH khusus Akun Unit
     const wrapperFilterMuh = document.getElementById("wrapper-filter-muh");
     if (wrapperFilterMuh) wrapperFilterMuh.classList.add("hidden");
   }
 
   renderAppShell(currentUser);
   bindTabNavigation();
-  bindLicenseClaimForm();
+  bindLicenseInteractiveModal();
 
-  // Load Awal Data (Fast Non-Blocking Path)
+  // Load Awal Data
   await loadInitialAppData();
 
   // Background Workers
   setTimeout(() => {
-    checkLicenseAsync(); // Pengecekan lisensi berjalan di background tanpa ganggu UI
+    checkLicenseAsync();
     startHeartbeatLoop(currentUser);
     startRealtimeDataPolling(currentUser);
   }, 2000);
@@ -97,7 +99,6 @@ async function loadInitialAppData() {
     console.error("Gagal memuat data awal:", error);
     GridEngine.initGrid("myGrid", []);
   } finally {
-    // SPINNER WAJIB TERTUTUP TANPA KECUALI!
     showLoading(false);
   }
 }
@@ -105,6 +106,7 @@ async function loadInitialAppData() {
 async function checkLicenseAsync() {
   try {
     const licenseInfo = await ApiService.checkLicense();
+    currentLicenseStatus = licenseInfo;
     updateLicenseBadge(licenseInfo);
 
     if (licenseInfo && licenseInfo.status === "EXPIRED") {
@@ -119,20 +121,137 @@ async function checkLicenseAsync() {
 
 function updateLicenseBadge(info) {
   const badgeText = document.getElementById("license-badge-text");
+  const interactiveStatusText = document.getElementById("interactive-status-text");
+
   if (!badgeText) return;
 
   if (info && info.status === "ACTIVE") {
     badgeText.innerText = "✓ Lisensi Resmi Aktif";
     badgeText.className = "font-bold text-emerald-400";
+    if (interactiveStatusText) {
+      interactiveStatusText.innerText = "✓ Lisensi Resmi Aktif";
+      interactiveStatusText.className = "font-bold text-emerald-400";
+    }
   } else if (info && info.status === "TRIAL") {
     badgeText.innerText = `⏳ Trial (${info.daysLeft} Hari Lagi)`;
     badgeText.className = "font-bold text-amber-300";
+    if (interactiveStatusText) {
+      interactiveStatusText.innerText = `⏳ Trial (${info.daysLeft} Hari Lagi)`;
+      interactiveStatusText.className = "font-bold text-amber-300";
+    }
   } else if (info && info.status === "EXPIRED") {
     badgeText.innerText = "❌ Lisensi Expired";
     badgeText.className = "font-bold text-red-400 animate-pulse";
+    if (interactiveStatusText) {
+      interactiveStatusText.innerText = "❌ Lisensi Expired";
+      interactiveStatusText.className = "font-bold text-red-400";
+    }
   } else {
     badgeText.innerText = "🔑 Status Lisensi Ready";
     badgeText.className = "font-bold text-slate-300";
+  }
+}
+
+function bindLicenseInteractiveModal() {
+  const btnOpenModal = document.getElementById("btn-open-license-modal");
+  const btnCloseModal = document.getElementById("btn-close-license-modal");
+  const modalInteractive = document.getElementById("modal-license-interactive");
+  const btnCopyHwid = document.getElementById("btn-copy-hwid");
+  const formInteractive = document.getElementById("form-claim-interactive");
+  const formLock = document.getElementById("form-claim-license");
+
+  // A. Buka Modal Lisensi saat Badge Header Diklik
+  if (btnOpenModal && modalInteractive) {
+    btnOpenModal.addEventListener("click", () => {
+      document.getElementById("display-hwid-client").innerText = HWID_CLIENT;
+      if (currentLicenseStatus) {
+        updateLicenseBadge(currentLicenseStatus);
+      }
+      modalInteractive.classList.remove("hidden");
+    });
+  }
+
+  // B. Tutup Modal
+  if (btnCloseModal && modalInteractive) {
+    btnCloseModal.addEventListener("click", () => {
+      modalInteractive.classList.add("hidden");
+    });
+  }
+
+  // C. Copy HWID Client Button
+  if (btnCopyHwid) {
+    btnCopyHwid.addEventListener("click", () => {
+      navigator.clipboard.writeText(HWID_CLIENT);
+      alert("HWID Client berhasil disalin ke clipboard!\nKirimkan HWID ini ke Admin untuk perpanjangan lisensi.");
+    });
+  }
+
+  // D. Form Submit Perpanjangan via Modal Interaktif
+  if (formInteractive) {
+    formInteractive.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const inputKey = document.getElementById("input-serial-interactive").value.trim();
+      const btnSubmit = document.getElementById("btn-submit-interactive");
+
+      if (!inputKey) {
+        alert("Masukkan Serial Key perpanjangan terlebih dahulu!");
+        return;
+      }
+
+      try {
+        if (btnSubmit) {
+          btnSubmit.innerText = "⏳ MEMVERIFIKASI...";
+          btnSubmit.disabled = true;
+        }
+
+        const res = await ApiService.claimLicense(inputKey);
+        alert(res.message || "Lisensi Berhasil Diperbarui!");
+        
+        modalInteractive.classList.add("hidden");
+        window.location.reload();
+      } catch (err) {
+        alert("Gagal Memperbarui Lisensi: " + err.message);
+      } finally {
+        if (btnSubmit) {
+          btnSubmit.innerText = "⚡ PERBARUI LISENSI SEKARANG";
+          btnSubmit.disabled = false;
+        }
+      }
+    });
+  }
+
+  // E. Form Submit via Lock Screen
+  if (formLock) {
+    formLock.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const inputKey = document.getElementById("input-serial-key").value.trim();
+      const btnSubmit = document.getElementById("btn-submit-license");
+
+      if (!inputKey) {
+        alert("Masukkan Serial Key lisensi terlebih dahulu!");
+        return;
+      }
+
+      try {
+        if (btnSubmit) {
+          btnSubmit.innerText = "⏳ MEMVERIFIKASI...";
+          btnSubmit.disabled = true;
+        }
+
+        const res = await ApiService.claimLicense(inputKey);
+        alert(res.message || "Lisensi Berhasil Diaktifkan!");
+        
+        showLicenseLockModal(false);
+        window.location.reload();
+      } catch (err) {
+        alert("Gagal Aktivasi Lisensi: " + err.message);
+      } finally {
+        if (btnSubmit) {
+          btnSubmit.innerText = "⚡ AKTIFKAN LISENSI SEKARANG";
+          btnSubmit.disabled = false;
+        }
+      }
+    });
   }
 }
 
@@ -145,42 +264,6 @@ function showLicenseLockModal(isLocked) {
   } else {
     modal.classList.add("hidden");
   }
-}
-
-function bindLicenseClaimForm() {
-  const form = document.getElementById("form-claim-license");
-  if (!form) return;
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const inputKey = document.getElementById("input-serial-key").value.trim();
-    const btnSubmit = document.getElementById("btn-submit-license");
-
-    if (!inputKey) {
-      alert("Masukkan Serial Key lisensi terlebih dahulu!");
-      return;
-    }
-
-    try {
-      if (btnSubmit) {
-        btnSubmit.innerText = "⏳ MEMVERIFIKASI...";
-        btnSubmit.disabled = true;
-      }
-
-      const res = await ApiService.claimLicense(inputKey);
-      alert(res.message || "Lisensi Berhasil Diaktifkan!");
-      
-      showLicenseLockModal(false);
-      window.location.reload();
-    } catch (err) {
-      alert("Gagal Aktivasi Lisensi: " + err.message);
-    } finally {
-      if (btnSubmit) {
-        btnSubmit.innerText = "⚡ AKTIFKAN LISENSI SEKARANG";
-        btnSubmit.disabled = false;
-      }
-    }
-  });
 }
 
 function processDataByPeriode(data) {
@@ -639,7 +722,7 @@ window.editUserUnit = function(sheetRow) {
   document.getElementById("form-user-title").innerText = `Edit User Unit: ${user.username}`;
   document.getElementById("btn-submit-user").innerText = "Simpan Perubahan User";
   document.getElementById("btn-submit-user").className = "bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors shadow cursor-pointer";
-  document.getElementById("btn-cancel-edit-user").classList.add("hidden");
+  document.getElementById("btn-cancel-edit-user").classList.remove("hidden");
 };
 
 window.deleteUserUnit = async function(sheetRow, email) {
