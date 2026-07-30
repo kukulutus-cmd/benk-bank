@@ -43,11 +43,11 @@
       <!-- Right Controls & Active Users Widget -->
       <div class="flex flex-wrap items-center gap-2 md:gap-3">
         
-        <!-- WIDGET INDIKATOR LISENSI K2C -->
-        <div id="license-badge-container" class="flex items-center space-x-1.5 bg-red-950 px-2.5 py-1 rounded-lg border border-red-600 text-[11px]">
+        <!-- WIDGET INDIKATOR LISENSI K2C (CLICKABLE) -->
+        <button id="btn-open-license-modal" class="flex items-center space-x-1.5 bg-red-950 hover:bg-red-900 transition-colors px-3 py-1.5 rounded-lg border border-red-500 text-[11px] cursor-pointer shadow-sm">
           <span class="text-xs">🔑</span>
           <span id="license-badge-text" class="font-bold text-amber-300">Cek Lisensi...</span>
-        </div>
+        </button>
 
         <!-- WIDGET INDIKATOR KEPALA UNIT ONLINE (KHUSUS HEAD) -->
         <div id="online-units-container" class="hidden flex items-center space-x-1.5 bg-red-800 bg-opacity-80 px-2.5 py-1 rounded-lg border border-red-600 text-[11px]">
@@ -177,7 +177,57 @@
 
   </main>
 
-  <!-- ================= MODAL LOCK SCREEN LISENSI K2C HUB ================= -->
+  <!-- ================= MODAL LISENSI & HWID CLIENT (INTERAKTIF) ================= -->
+  <div id="modal-license-interactive" class="hidden fixed inset-0 bg-slate-900 bg-opacity-80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+    <div class="bg-slate-900 border-2 border-red-600 rounded-2xl shadow-2xl max-w-md w-full p-6 text-white space-y-5">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">🔑</span>
+          <h3 class="text-base font-bold text-amber-400 font-mono">INFORMASI & PERPANJANGAN LISENSI</h3>
+        </div>
+        <button id="btn-close-license-modal" class="text-slate-400 hover:text-white font-bold text-xl cursor-pointer">&times;</button>
+      </div>
+
+      <!-- HWID Display Section -->
+      <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-mono text-slate-400 uppercase tracking-wider">HWID Client / Hardware ID:</span>
+          <button id="btn-copy-hwid" class="text-[10px] bg-red-950 hover:bg-red-900 text-amber-300 border border-red-700 px-2 py-0.5 rounded font-mono font-bold transition-all cursor-pointer">
+            📋 Copy HWID
+          </button>
+        </div>
+        <div id="display-hwid-client" class="text-xs font-mono font-bold text-emerald-400 tracking-wide select-all break-all bg-slate-900 p-2 rounded border border-slate-800">
+          WEB-APP-K2C-BANK
+        </div>
+        <p class="text-[10px] text-slate-500 font-mono">
+          *Gunakan HWID di atas saat meminta Serial Key perpanjangan ke Administrator.
+        </p>
+      </div>
+
+      <!-- Current Status -->
+      <div class="flex justify-between items-center bg-slate-800/50 p-3 rounded-lg text-xs font-mono">
+        <span class="text-slate-300">Status Saat Ini:</span>
+        <span id="interactive-status-text" class="font-bold text-amber-300">Memuat status...</span>
+      </div>
+
+      <!-- Claim / Renew Form -->
+      <form id="form-claim-interactive" class="space-y-4">
+        <div>
+          <label class="block text-xs font-mono text-slate-300 uppercase mb-1">Masukkan Serial Key Baru *</label>
+          <input type="text" id="input-serial-interactive" required placeholder="K2C-XXXX-XXXX-XXXX-365d" class="w-full text-center bg-slate-950 border border-red-600/70 rounded-lg p-2.5 text-xs font-bold text-amber-300 font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none uppercase tracking-wider"/>
+        </div>
+
+        <button type="submit" id="btn-submit-interactive" class="w-full bg-red-700 hover:bg-red-800 text-white font-bold py-2.5 rounded-xl text-xs font-mono uppercase tracking-widest shadow-lg transition-all cursor-pointer">
+          ⚡ PERBARUI LISENSI SEKARANG
+        </button>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ================= MODAL LOCK SCREEN LISENSI K2C HUB (JIKA EXPIRED) ================= -->
   <div id="modal-license-lock" class="hidden fixed inset-0 bg-slate-950 bg-opacity-95 flex items-center justify-center z-50 p-4 backdrop-blur-md">
     <div class="bg-slate-900 border-2 border-red-600 rounded-2xl shadow-2xl max-w-md w-full p-6 text-center space-y-5 text-white">
       <div class="w-16 h-16 mx-auto bg-red-950 border border-red-500 rounded-full flex items-center justify-center text-3xl animate-bounce">
