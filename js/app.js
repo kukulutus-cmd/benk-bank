@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APP.JS - Fast Non-Blocking Orchestrator & K2C License Guard
+ * APP.JS - Fast Parallel Boot Engine & Resilient License Guard
  * ==========================================================
  */
 
@@ -51,14 +51,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindTabNavigation();
   bindLicenseClaimForm();
 
-  // Load Awal Data & License Check
+  // Load Awal Data (Fast Non-Blocking Path)
   await loadInitialAppData();
 
   // Background Workers
   setTimeout(() => {
+    checkLicenseAsync(); // Pengecekan lisensi berjalan di background tanpa ganggu UI
     startHeartbeatLoop(currentUser);
     startRealtimeDataPolling(currentUser);
-  }, 3000);
+  }, 2000);
 
   bindButtons();
 });
@@ -66,19 +67,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function loadInitialAppData() {
   showLoading(true);
   try {
-    // 1. Cek Lisensi K2C Hub Terlebih Dahulu
-    const licenseInfo = await ApiService.checkLicense();
-    updateLicenseBadge(licenseInfo);
-
-    if (licenseInfo && licenseInfo.status === "EXPIRED") {
-      showLicenseLockModal(true);
-      showLoading(false);
-      return; // Hentikan eksekusi jika lisensi expired
-    } else {
-      showLicenseLockModal(false);
-    }
-
-    // 2. Fetch Data Utama Aplikasi
     const result = await ApiService.fetchData();
     
     updateSignalStatus(true, result.pingMs || 100);
@@ -109,7 +97,23 @@ async function loadInitialAppData() {
     console.error("Gagal memuat data awal:", error);
     GridEngine.initGrid("myGrid", []);
   } finally {
+    // SPINNER WAJIB TERTUTUP TANPA KECUALI!
     showLoading(false);
+  }
+}
+
+async function checkLicenseAsync() {
+  try {
+    const licenseInfo = await ApiService.checkLicense();
+    updateLicenseBadge(licenseInfo);
+
+    if (licenseInfo && licenseInfo.status === "EXPIRED") {
+      showLicenseLockModal(true);
+    } else {
+      showLicenseLockModal(false);
+    }
+  } catch (err) {
+    console.warn("Check license background bypass:", err);
   }
 }
 
@@ -117,15 +121,18 @@ function updateLicenseBadge(info) {
   const badgeText = document.getElementById("license-badge-text");
   if (!badgeText) return;
 
-  if (info.status === "ACTIVE") {
+  if (info && info.status === "ACTIVE") {
     badgeText.innerText = "✓ Lisensi Resmi Aktif";
     badgeText.className = "font-bold text-emerald-400";
-  } else if (info.status === "TRIAL") {
+  } else if (info && info.status === "TRIAL") {
     badgeText.innerText = `⏳ Trial (${info.daysLeft} Hari Lagi)`;
     badgeText.className = "font-bold text-amber-300";
-  } else {
+  } else if (info && info.status === "EXPIRED") {
     badgeText.innerText = "❌ Lisensi Expired";
     badgeText.className = "font-bold text-red-400 animate-pulse";
+  } else {
+    badgeText.innerText = "🔑 Status Lisensi Ready";
+    badgeText.className = "font-bold text-slate-300";
   }
 }
 
@@ -632,7 +639,7 @@ window.editUserUnit = function(sheetRow) {
   document.getElementById("form-user-title").innerText = `Edit User Unit: ${user.username}`;
   document.getElementById("btn-submit-user").innerText = "Simpan Perubahan User";
   document.getElementById("btn-submit-user").className = "bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors shadow cursor-pointer";
-  document.getElementById("btn-cancel-edit-user").classList.remove("hidden");
+  document.getElementById("btn-cancel-edit-user").classList.add("hidden");
 };
 
 window.deleteUserUnit = async function(sheetRow, email) {
