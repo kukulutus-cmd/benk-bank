@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APP.JS - Ultra Fast User Unit Manager & Non-Blocking Loader
+ * APP.JS - Fast Non-Blocking Orchestrator & K2C License Guard
  * ==========================================================
  */
 
@@ -49,11 +49,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   renderAppShell(currentUser);
   bindTabNavigation();
+  bindLicenseClaimForm();
 
-  // Load Awal Data (Fast Non-Blocking Path)
+  // Load Awal Data & License Check
   await loadInitialAppData();
 
-  // Background Workers (Tanpa Memblokir UI)
+  // Background Workers
   setTimeout(() => {
     startHeartbeatLoop(currentUser);
     startRealtimeDataPolling(currentUser);
@@ -65,6 +66,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function loadInitialAppData() {
   showLoading(true);
   try {
+    // 1. Cek Lisensi K2C Hub Terlebih Dahulu
+    const licenseInfo = await ApiService.checkLicense();
+    updateLicenseBadge(licenseInfo);
+
+    if (licenseInfo && licenseInfo.status === "EXPIRED") {
+      showLicenseLockModal(true);
+      showLoading(false);
+      return; // Hentikan eksekusi jika lisensi expired
+    } else {
+      showLicenseLockModal(false);
+    }
+
+    // 2. Fetch Data Utama Aplikasi
     const result = await ApiService.fetchData();
     
     updateSignalStatus(true, result.pingMs || 100);
@@ -95,9 +109,71 @@ async function loadInitialAppData() {
     console.error("Gagal memuat data awal:", error);
     GridEngine.initGrid("myGrid", []);
   } finally {
-    // JAMINAN MUTLAK: SPINNER LOADING WAJIB DITUTUP
     showLoading(false);
   }
+}
+
+function updateLicenseBadge(info) {
+  const badgeText = document.getElementById("license-badge-text");
+  if (!badgeText) return;
+
+  if (info.status === "ACTIVE") {
+    badgeText.innerText = "✓ Lisensi Resmi Aktif";
+    badgeText.className = "font-bold text-emerald-400";
+  } else if (info.status === "TRIAL") {
+    badgeText.innerText = `⏳ Trial (${info.daysLeft} Hari Lagi)`;
+    badgeText.className = "font-bold text-amber-300";
+  } else {
+    badgeText.innerText = "❌ Lisensi Expired";
+    badgeText.className = "font-bold text-red-400 animate-pulse";
+  }
+}
+
+function showLicenseLockModal(isLocked) {
+  const modal = document.getElementById("modal-license-lock");
+  if (!modal) return;
+
+  if (isLocked) {
+    modal.classList.remove("hidden");
+  } else {
+    modal.classList.add("hidden");
+  }
+}
+
+function bindLicenseClaimForm() {
+  const form = document.getElementById("form-claim-license");
+  if (!form) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const inputKey = document.getElementById("input-serial-key").value.trim();
+    const btnSubmit = document.getElementById("btn-submit-license");
+
+    if (!inputKey) {
+      alert("Masukkan Serial Key lisensi terlebih dahulu!");
+      return;
+    }
+
+    try {
+      if (btnSubmit) {
+        btnSubmit.innerText = "⏳ MEMVERIFIKASI...";
+        btnSubmit.disabled = true;
+      }
+
+      const res = await ApiService.claimLicense(inputKey);
+      alert(res.message || "Lisensi Berhasil Diaktifkan!");
+      
+      showLicenseLockModal(false);
+      window.location.reload();
+    } catch (err) {
+      alert("Gagal Aktivasi Lisensi: " + err.message);
+    } finally {
+      if (btnSubmit) {
+        btnSubmit.innerText = "⚡ AKTIFKAN LISENSI SEKARANG";
+        btnSubmit.disabled = false;
+      }
+    }
+  });
 }
 
 function processDataByPeriode(data) {
@@ -419,7 +495,6 @@ async function openSettingsModal() {
     document.getElementById("set-head-password").value = settings.head_password || "";
   }
 
-  // Render cepat tabel user dari cache tanpa menunggu network call
   renderUserTable(cachedUsersList);
 
   document.getElementById("btn-close-settings").onclick = () => {
@@ -460,9 +535,6 @@ async function openSettingsModal() {
     }
   };
 
-  /**
-   * OPTIMISTIC UI SUBMIT FORM USER UNIT (FAST NON-BLOCKING)
-   */
   document.getElementById("form-user-unit").onsubmit = async (e) => {
     e.preventDefault();
     const sheetRow = document.getElementById("user-sheet-row").value;
@@ -485,7 +557,6 @@ async function openSettingsModal() {
       }
 
       if (sheetRow) {
-        // Mode Update
         await ApiService.updateUser(payload);
         const idx = cachedUsersList.findIndex(u => String(u.sheet_row) === String(sheetRow));
         if (idx !== -1) {
@@ -493,7 +564,6 @@ async function openSettingsModal() {
         }
         alert(`User Unit ${payload.email} berhasil diperbarui!`);
       } else {
-        // Mode Tambah Baru
         const res = await ApiService.addUser(payload);
         payload.sheet_row = (res && res.sheet_row) ? res.sheet_row : (cachedUsersList.length + 5);
         cachedUsersList.push(payload);
@@ -511,7 +581,6 @@ async function openSettingsModal() {
         btnSubmitUser.innerText = originalText;
         btnSubmitUser.disabled = false;
       }
-      // Dilarang membiarkan modal loader mengunci layar!
       showLoading(false);
     }
   };
