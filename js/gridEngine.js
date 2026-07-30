@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * GRIDENGINE.JS - AG-Grid Engine & Checkbox Event Capture
+ * GRIDENGINE.JS - AG-Grid Engine, Filtering, Export & Print
  * ==========================================================
  */
 
@@ -65,7 +65,6 @@ export const GridEngine = {
       { headerName: "TGL CAIR", field: "tgl_cair", minWidth: 75, editable: !isHeadArea },
       { headerName: "Periode Bulan", field: "periode_bulan", minWidth: 65, editable: !isHeadArea },
       
-      // CHECKBOX COLUMNS DENGAN PARSER BOOLEAN PRESISI
       { headerName: "QRIS", field: "qris", minWidth: 45, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
       { headerName: "JAKONE ABANK", field: "jakone_abank", minWidth: 65, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
       { headerName: "JAKONE MOBILE", field: "jakone_mobile", minWidth: 65, editable: !isHeadArea, cellEditor: 'agCheckboxCellEditor', cellRenderer: 'agCheckboxCellRenderer' },
@@ -111,9 +110,13 @@ export const GridEngine = {
       animateRows: true,
       onGridReady: (params) => {
         params.api.sizeColumnsToFit();
+        this.bindFilterEvents();
       },
       onGridSizeChanged: (params) => {
         params.api.sizeColumnsToFit();
+      },
+      onFilterChanged: () => {
+        this.updateMetricsFromFilteredData();
       },
       onCellValueChanged: async (event) => {
         const updatedRow = event.data;
@@ -132,11 +135,7 @@ export const GridEngine = {
             statusEl.className = "text-green-600 font-semibold text-xs";
           }
 
-          const allRows = [];
-          if (this.gridApi) {
-            this.gridApi.forEachNode(node => allRows.push(node.data));
-            StatCardsModule.updateMetrics(allRows);
-          }
+          this.updateMetricsFromFilteredData();
 
         } catch (error) {
           console.error("Gagal menyimpan perubahan sel:", error);
@@ -152,6 +151,91 @@ export const GridEngine = {
     this.gridApi = agGrid.createGrid(container, gridOptions);
   },
 
+  /**
+   * EVENT BINDING FILTER MUH & TANGGAL CAIR
+   */
+  bindFilterEvents: function() {
+    const elMuh = document.getElementById("filter-muh");
+    const elTgl = document.getElementById("filter-tgl-cair");
+    const btnReset = document.getElementById("btn-reset-filter");
+    const btnExport = document.getElementById("btn-export-excel");
+    const btnPrint = document.getElementById("btn-print-report");
+
+    if (elMuh) elMuh.addEventListener("change", () => this.applyCustomFilters());
+    if (elTgl) elTgl.addEventListener("change", () => this.applyCustomFilters());
+    
+    if (btnReset) {
+      btnReset.addEventListener("click", () => {
+        if (elMuh) elMuh.value = "";
+        if (elTgl) elTgl.value = "";
+        this.applyCustomFilters();
+      });
+    }
+
+    if (btnExport) {
+      btnExport.addEventListener("click", () => this.exportToCsv());
+    }
+
+    if (btnPrint) {
+      btnPrint.addEventListener("click", () => this.printTableReport());
+    }
+  },
+
+  applyCustomFilters: function() {
+    if (!this.gridApi) return;
+
+    const selectedMuh = document.getElementById("filter-muh") ? document.getElementById("filter-muh").value : "";
+    const selectedTgl = document.getElementById("filter-tgl-cair") ? document.getElementById("filter-tgl-cair").value : "";
+
+    const filterInstanceMuh = this.gridApi.getFilterInstance("nama_muh");
+    const filterInstanceTgl = this.gridApi.getFilterInstance("tgl_cair");
+
+    if (filterInstanceMuh) {
+      if (selectedMuh) {
+        filterInstanceMuh.setModel({
+          type: "equals",
+          filter: selectedMuh
+        });
+      } else {
+        filterInstanceMuh.setModel(null);
+      }
+    }
+
+    if (filterInstanceTgl) {
+      if (selectedTgl) {
+        filterInstanceTgl.setModel({
+          type: "contains",
+          filter: selectedTgl
+        });
+      } else {
+        filterInstanceTgl.setModel(null);
+      }
+    }
+
+    this.gridApi.onFilterChanged();
+  },
+
+  updateMetricsFromFilteredData: function() {
+    if (!this.gridApi) return;
+    const filteredRows = [];
+    this.gridApi.forEachNodeAfterFilter(node => {
+      filteredRows.push(node.data);
+    });
+    StatCardsModule.updateMetrics(filteredRows);
+  },
+
+  exportToCsv: function() {
+    if (!this.gridApi) return;
+    const now = new Date().toISOString().split('T')[0];
+    this.gridApi.exportDataAsCsv({
+      fileName: `Laporan_Bank_Daily_${now}.csv`
+    });
+  },
+
+  printTableReport: function() {
+    window.print();
+  },
+
   addNewRow: async function() {
     if (AuthService.isHeadArea()) {
       alert("Akses dibatasi: Akun Head Area berada dalam mode Read-Only.");
@@ -164,6 +248,7 @@ export const GridEngine = {
     }
 
     const user = AuthService.getCurrentUser();
+    const now = new Date();
     const newRow = {
       row_index: null,
       nama_sentra: "cikarang",
@@ -176,8 +261,8 @@ export const GridEngine = {
       line_proses: "SM",
       plafon: 0,
       nett_booking: 0,
-      tgl_cair: new Date().toISOString().split('T')[0],
-      periode_bulan: `${new Date().getMonth() + 1}/${new Date().getFullYear()}`,
+      tgl_cair: now.toISOString().split('T')[0],
+      periode_bulan: `${now.getMonth() + 1}/${now.getFullYear()}`,
       qris: false,
       jakone_abank: false,
       jakone_mobile: false,
@@ -193,9 +278,7 @@ export const GridEngine = {
       statusEl.className = "text-amber-600 font-semibold text-xs";
     }
 
-    const allRows = [];
-    this.gridApi.forEachNode(node => allRows.push(node.data));
-    StatCardsModule.updateMetrics(allRows);
+    this.updateMetricsFromFilteredData();
 
     try {
       const res = await ApiService.saveRow(newRow);
@@ -226,9 +309,7 @@ export const GridEngine = {
       statusEl.className = "text-amber-600 font-semibold text-xs";
     }
 
-    const allRows = [];
-    this.gridApi.forEachNode(n => allRows.push(n.data));
-    StatCardsModule.updateMetrics(allRows);
+    this.updateMetricsFromFilteredData();
 
     try {
       if (rowData.row_index) {
