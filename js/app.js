@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APP.JS - Non-Blocking Orchestrator & Head-Only Toast Notification
+ * APP.JS - Main Orchestrator, Auto-Archive Engine & Tab Switcher
  * ==========================================================
  */
 
@@ -9,7 +9,12 @@ import { ApiService } from './apiService.js';
 import { StatCardsModule } from './statCards.js';
 import { GridEngine } from './gridEngine.js';
 
+let allMasterData = [];
+let currentMonthData = [];
+let historicalData = [];
 let cachedUsersList = [];
+
+let activeTab = "DASHBOARD"; // "DASHBOARD" | "LAPORAN"
 let lastDataRowCount = 0;
 let isFirstLoad = true;
 
@@ -36,6 +41,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   renderAppShell(currentUser);
 
+  // Bind Tab Switching & Filter Dynamic
+  bindTabNavigation();
+
   // Load awal data
   await loadInitialAppData();
 
@@ -61,20 +69,145 @@ async function loadInitialAppData() {
     if (result.users) {
       cachedUsersList = result.users;
       renderOnlineUnitsWidget(cachedUsersList);
+      populateMuhDropdownOptions(cachedUsersList);
     }
 
-    lastDataRowCount = Array.isArray(result.data) ? result.data.length : 0;
-    StatCardsModule.updateMetrics(result.data);
-    GridEngine.initGrid("myGrid", result.data);
+    allMasterData = Array.isArray(result.data) ? result.data : [];
+    processDataByPeriode(allMasterData);
+
+    const initialDisplayData = (activeTab === "DASHBOARD") ? currentMonthData : historicalData;
+    lastDataRowCount = initialDisplayData.length;
+
+    StatCardsModule.updateMetrics(initialDisplayData);
+    GridEngine.initGrid("myGrid", initialDisplayData);
     
     isFirstLoad = false;
   } catch (error) {
     updateSignalStatus(false, 0);
     console.error("Gagal memuat data aplikasi:", error);
   } finally {
-    // FIX PENTING: Spinner Modal WAJIB Hilang dalam keadaan apa pun!
     showLoading(false);
   }
+}
+
+/**
+ * PEMISAHAN AUTOMATIS DATA BULAN BERJALAN VS HISTORICAL LAPORAN
+ */
+function processDataByPeriode(data) {
+  const now = new Date();
+  const currentMonthStr = `${now.getMonth() + 1}/${now.getFullYear()}`;
+
+  currentMonthData = [];
+  historicalData = [];
+
+  const periodeSet = new Set();
+
+  data.forEach(item => {
+    const itemPeriode = item.periode_bulan ? item.periode_bulan.toString().trim() : currentMonthStr;
+    periodeSet.add(itemPeriode);
+
+    if (itemPeriode === currentMonthStr) {
+      currentMonthData.push(item);
+    } else {
+      historicalData.push(item);
+    }
+  });
+
+  populatePeriodeDropdownOptions(Array.from(periodeSet));
+}
+
+/**
+ * NAVIGASI TAB DASHBOARD (BULAN INI) VS LAPORAN HISTORICAL
+ */
+function bindTabNavigation() {
+  const tabDashboard = document.getElementById("tab-dashboard");
+  const tabLaporan = document.getElementById("tab-laporan");
+  const wrapperPeriodeFilter = document.getElementById("wrapper-filter-periode");
+  const btnAddRow = document.getElementById("btn-add-row");
+  const filterPeriodeSelect = document.getElementById("filter-periode-bulan");
+
+  if (tabDashboard && tabLaporan) {
+    tabDashboard.addEventListener("click", () => {
+      activeTab = "DASHBOARD";
+      
+      // Styling Tab Active
+      tabDashboard.className = "py-2.5 px-5 font-bold text-xs rounded-t-lg bg-red-700 text-white border-b-2 border-red-700 shadow-sm flex items-center gap-2 cursor-pointer transition-all";
+      tabLaporan.className = "py-2.5 px-5 font-bold text-xs rounded-t-lg bg-white text-slate-600 hover:bg-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer transition-all";
+
+      if (wrapperPeriodeFilter) wrapperPeriodeFilter.classList.add("hidden");
+      if (btnAddRow && !AuthService.isHeadArea()) btnAddRow.style.display = "flex";
+
+      switchGridData(currentMonthData);
+    });
+
+    tabLaporan.addEventListener("click", () => {
+      activeTab = "LAPORAN";
+
+      // Styling Tab Active
+      tabLaporan.className = "py-2.5 px-5 font-bold text-xs rounded-t-lg bg-red-700 text-white border-b-2 border-red-700 shadow-sm flex items-center gap-2 cursor-pointer transition-all";
+      tabDashboard.className = "py-2.5 px-5 font-bold text-xs rounded-t-lg bg-white text-slate-600 hover:bg-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer transition-all";
+
+      if (wrapperPeriodeFilter) wrapperPeriodeFilter.classList.remove("hidden");
+      if (btnAddRow) btnAddRow.style.display = "none"; // Modus Laporan Read-Only untuk entri baru
+
+      switchGridData(historicalData);
+    });
+  }
+
+  if (filterPeriodeSelect) {
+    filterPeriodeSelect.addEventListener("change", (e) => {
+      const selectedPeriode = e.target.value;
+      if (selectedPeriode === "ALL" || !selectedPeriode) {
+        switchGridData(historicalData);
+      } else {
+        const filteredByPeriode = historicalData.filter(d => d.periode_bulan === selectedPeriode);
+        switchGridData(filteredByPeriode);
+      }
+    });
+  }
+}
+
+function switchGridData(dataset) {
+  if (GridEngine.gridApi) {
+    GridEngine.gridApi.setGridOption('rowData', dataset);
+    GridEngine.applyCustomFilters();
+  }
+  StatCardsModule.updateMetrics(dataset);
+}
+
+function populateMuhDropdownOptions(users) {
+  const elMuh = document.getElementById("filter-muh");
+  if (!elMuh || !Array.isArray(users)) return;
+
+  const currentVal = elMuh.value;
+  elMuh.innerHTML = `<option value="">Semua MUH</option>`;
+
+  const muhUsers = users.filter(u => u.role === "MUH");
+  muhUsers.forEach(u => {
+    const opt = document.createElement("option");
+    opt.value = u.username;
+    opt.textContent = u.username;
+    elMuh.appendChild(opt);
+  });
+
+  elMuh.value = currentVal;
+}
+
+function populatePeriodeDropdownOptions(periodes) {
+  const elPeriode = document.getElementById("filter-periode-bulan");
+  if (!elPeriode) return;
+
+  const currentVal = elPeriode.value;
+  elPeriode.innerHTML = `<option value="ALL">Semua Histori</option>`;
+
+  periodes.sort().reverse().forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p;
+    opt.textContent = `Periode ${p}`;
+    elPeriode.appendChild(opt);
+  });
+
+  elPeriode.value = currentVal;
 }
 
 function startHeartbeatLoop(currentUser) {
@@ -87,14 +220,11 @@ function startHeartbeatLoop(currentUser) {
         renderOnlineUnitsWidget(cachedUsersList);
       }
     } catch (e) {
-      // Background Heartbeat Failure - Non Blocking
+      // Non-blocking
     }
   }, 12000);
 }
 
-/**
- * POLLING POPS-UP HANYA UNTUK HEAD AREA
- */
 function startRealtimeDataPolling(currentUser) {
   setInterval(async () => {
     try {
@@ -107,19 +237,18 @@ function startRealtimeDataPolling(currentUser) {
       }
 
       if (Array.isArray(result.data)) {
-        const currentCount = result.data.length;
+        allMasterData = result.data;
+        processDataByPeriode(allMasterData);
 
-        // PERBAIKAN: NOTIFIKASI TOAST HANYA UNTUK HEAD AREA!
+        const targetData = (activeTab === "DASHBOARD") ? currentMonthData : historicalData;
+        const currentCount = targetData.length;
+
         if (!isFirstLoad && currentCount > lastDataRowCount && AuthService.isHeadArea()) {
           const newItemsCount = currentCount - lastDataRowCount;
-          const newestItem = result.data[result.data.length - 1];
+          const newestItem = targetData[targetData.length - 1];
           
           showToastNotification(`🔔 Data Baru Masuk! (${newItemsCount} Debitur baru oleh ${newestItem.nama_muh || 'Unit'})`);
-          
-          if (GridEngine.gridApi) {
-            GridEngine.gridApi.setGridOption('rowData', result.data);
-          }
-          StatCardsModule.updateMetrics(result.data);
+          switchGridData(targetData);
         }
 
         lastDataRowCount = currentCount;
@@ -170,7 +299,6 @@ function renderOnlineUnitsWidget(users) {
 }
 
 function showToastNotification(message) {
-  // Hanya eksekusi jika role adalah Head Area
   if (!AuthService.isHeadArea()) return;
 
   const container = document.getElementById("toast-container");
