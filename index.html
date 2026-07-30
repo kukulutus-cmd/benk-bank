@@ -43,6 +43,12 @@
       <!-- Right Controls & Active Users Widget -->
       <div class="flex flex-wrap items-center gap-2 md:gap-3">
         
+        <!-- WIDGET INDIKATOR LISENSI K2C -->
+        <div id="license-badge-container" class="flex items-center space-x-1.5 bg-red-950 px-2.5 py-1 rounded-lg border border-red-600 text-[11px]">
+          <span class="text-xs">🔑</span>
+          <span id="license-badge-text" class="font-bold text-amber-300">Cek Lisensi...</span>
+        </div>
+
         <!-- WIDGET INDIKATOR KEPALA UNIT ONLINE (KHUSUS HEAD) -->
         <div id="online-units-container" class="hidden flex items-center space-x-1.5 bg-red-800 bg-opacity-80 px-2.5 py-1 rounded-lg border border-red-600 text-[11px]">
           <span class="text-xs">👥</span>
@@ -170,6 +176,36 @@
     </section>
 
   </main>
+
+  <!-- ================= MODAL LOCK SCREEN LISENSI K2C HUB ================= -->
+  <div id="modal-license-lock" class="hidden fixed inset-0 bg-slate-950 bg-opacity-95 flex items-center justify-center z-50 p-4 backdrop-blur-md">
+    <div class="bg-slate-900 border-2 border-red-600 rounded-2xl shadow-2xl max-w-md w-full p-6 text-center space-y-5 text-white">
+      <div class="w-16 h-16 mx-auto bg-red-950 border border-red-500 rounded-full flex items-center justify-center text-3xl animate-bounce">
+        🔒
+      </div>
+      <div>
+        <h2 class="text-xl font-extrabold text-amber-400 font-mono tracking-wide">LISENSI EXPIRED / TERSUMBAT</h2>
+        <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+          Masa aktif trial 30 hari aplikasi telah habis. Silakan masukkan <strong class="text-amber-300">Serial Key K2C Universal License Hub</strong> resmi untuk memperpanjang akses.
+        </p>
+      </div>
+
+      <form id="form-claim-license" class="space-y-4">
+        <div>
+          <label class="block text-xs font-mono text-slate-400 uppercase mb-1">Serial Key License Key *</label>
+          <input type="text" id="input-serial-key" required placeholder="K2C-XXXX-XXXX-XXXX-365d" class="w-full text-center bg-slate-950 border-2 border-red-600 rounded-lg p-3 text-sm font-bold text-amber-300 font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none uppercase tracking-wider"/>
+        </div>
+
+        <button type="submit" id="btn-submit-license" class="w-full bg-red-700 hover:bg-red-800 text-white font-bold py-3 rounded-xl text-xs font-mono uppercase tracking-widest shadow-lg transition-all cursor-pointer">
+          ⚡ AKTIFKAN LISENSI SEKARANG
+        </button>
+      </form>
+
+      <p class="text-[10px] text-slate-500 font-mono">
+        K2C Universal License Hub Engine Protected v3.0
+      </p>
+    </div>
+  </div>
 
   <!-- FLOATING REALTIME TOAST NOTIFICATION -->
   <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
