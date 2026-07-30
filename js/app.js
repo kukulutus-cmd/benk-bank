@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * APP.JS - Main Orchestrator, Auto-Archive Engine & Tab Switcher
+ * APP.JS - Flexible Date Normalizer, MUH Isolation & Tab Manager
  * ==========================================================
  */
 
@@ -29,14 +29,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+  // KHUSUS HEAD AREA: Tampilkan tombol Pengaturan, Widget Unit Online & Filter MUH
   if (AuthService.isHeadArea()) {
     const btnSet = document.getElementById("btn-open-settings");
-    if (btnSet) {
-      btnSet.classList.remove("hidden");
-      btnSet.addEventListener("click", () => openSettingsModal());
-    }
+    if (btnSet) btnSet.classList.remove("hidden");
+    
     const onlineWidget = document.getElementById("online-units-container");
     if (onlineWidget) onlineWidget.classList.remove("hidden");
+
+    const wrapperFilterMuh = document.getElementById("wrapper-filter-muh");
+    if (wrapperFilterMuh) wrapperFilterMuh.classList.remove("hidden");
+
+    if (btnSet) btnSet.addEventListener("click", () => openSettingsModal());
+  } else {
+    // UNTUK UNIT (MUH): SEMBUNYIKAN FILTER MUH!
+    const wrapperFilterMuh = document.getElementById("wrapper-filter-muh");
+    if (wrapperFilterMuh) wrapperFilterMuh.classList.add("hidden");
   }
 
   renderAppShell(currentUser);
@@ -91,11 +99,12 @@ async function loadInitialAppData() {
 }
 
 /**
- * PEMISAHAN AUTOMATIS DATA BULAN BERJALAN VS HISTORICAL LAPORAN
+ * PARSER & PEMISAHAN DATA BULAN BERJALAN VS HISTORICAL LAPORAN FLEXIBLE
  */
 function processDataByPeriode(data) {
   const now = new Date();
-  const currentMonthStr = `${now.getMonth() + 1}/${now.getFullYear()}`;
+  const currentMonthNum = now.getMonth() + 1; // 1 - 12 (Contoh: 7 untuk Juli)
+  const currentYearNum = now.getFullYear();   // 2026
 
   currentMonthData = [];
   historicalData = [];
@@ -103,10 +112,32 @@ function processDataByPeriode(data) {
   const periodeSet = new Set();
 
   data.forEach(item => {
-    const itemPeriode = item.periode_bulan ? item.periode_bulan.toString().trim() : currentMonthStr;
-    periodeSet.add(itemPeriode);
+    let itemMonth = currentMonthNum;
+    let itemYear = currentYearNum;
+    let itemPeriodeStr = `${currentMonthNum}/${currentYearNum}`;
 
-    if (itemPeriode === currentMonthStr) {
+    // Parsing Tanggal Cair / Periode Bulan flexible
+    const rawDateStr = item.tgl_cair || item.periode_bulan;
+    if (rawDateStr) {
+      const parsedDate = new Date(rawDateStr);
+      if (!isNaN(parsedDate.getTime())) {
+        itemMonth = parsedDate.getMonth() + 1;
+        itemYear = parsedDate.getFullYear();
+        itemPeriodeStr = `${itemMonth}/${itemYear}`;
+      } else if (typeof rawDateStr === 'string' && rawDateStr.includes('/')) {
+        const parts = rawDateStr.split('/');
+        if (parts.length >= 2) {
+          itemMonth = parseInt(parts[0]);
+          itemYear = parseInt(parts[1]);
+          itemPeriodeStr = `${itemMonth}/${itemYear}`;
+        }
+      }
+    }
+
+    periodeSet.add(itemPeriodeStr);
+
+    // KONDISI PENENTUAN: BILA BULAN & TAHUN SAMA DENGAN SAAT INI (JULI 2026), MASUK DASHBOARD UTAMA!
+    if (itemMonth === currentMonthNum && itemYear === currentYearNum) {
       currentMonthData.push(item);
     } else {
       historicalData.push(item);
@@ -130,7 +161,6 @@ function bindTabNavigation() {
     tabDashboard.addEventListener("click", () => {
       activeTab = "DASHBOARD";
       
-      // Styling Tab Active
       tabDashboard.className = "py-2.5 px-5 font-bold text-xs rounded-t-lg bg-red-700 text-white border-b-2 border-red-700 shadow-sm flex items-center gap-2 cursor-pointer transition-all";
       tabLaporan.className = "py-2.5 px-5 font-bold text-xs rounded-t-lg bg-white text-slate-600 hover:bg-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer transition-all";
 
@@ -143,12 +173,11 @@ function bindTabNavigation() {
     tabLaporan.addEventListener("click", () => {
       activeTab = "LAPORAN";
 
-      // Styling Tab Active
       tabLaporan.className = "py-2.5 px-5 font-bold text-xs rounded-t-lg bg-red-700 text-white border-b-2 border-red-700 shadow-sm flex items-center gap-2 cursor-pointer transition-all";
       tabDashboard.className = "py-2.5 px-5 font-bold text-xs rounded-t-lg bg-white text-slate-600 hover:bg-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer transition-all";
 
       if (wrapperPeriodeFilter) wrapperPeriodeFilter.classList.remove("hidden");
-      if (btnAddRow) btnAddRow.style.display = "none"; // Modus Laporan Read-Only untuk entri baru
+      if (btnAddRow) btnAddRow.style.display = "none";
 
       switchGridData(historicalData);
     });
@@ -160,7 +189,16 @@ function bindTabNavigation() {
       if (selectedPeriode === "ALL" || !selectedPeriode) {
         switchGridData(historicalData);
       } else {
-        const filteredByPeriode = historicalData.filter(d => d.periode_bulan === selectedPeriode);
+        const filteredByPeriode = historicalData.filter(d => {
+          const rawDateStr = d.tgl_cair || d.periode_bulan;
+          if (!rawDateStr) return false;
+          const parsedDate = new Date(rawDateStr);
+          let pStr = d.periode_bulan;
+          if (!isNaN(parsedDate.getTime())) {
+            pStr = `${parsedDate.getMonth() + 1}/${parsedDate.getFullYear()}`;
+          }
+          return pStr === selectedPeriode;
+        });
         switchGridData(filteredByPeriode);
       }
     });
